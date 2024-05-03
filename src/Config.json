@@ -1,0 +1,10 @@
+{
+    "type": "mysql",
+    "host": "localhost",
+    "port": 8080,
+    "username": "intissar",
+    "password": "root",
+    "database": "autoecole",
+    "entities": ["dist/**/*.entity{.ts,.js}"],
+    "synchronize": true
+  }
