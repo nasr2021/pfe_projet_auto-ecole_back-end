@@ -8,7 +8,6 @@ export class RolesGuard implements CanActivate {
     private readonly prisma: PrismaService,
     private readonly reflector: Reflector
   ) {}
- 
   async getRoleNameById(roleId: number): Promise<string | undefined> {
     const role = await this.prisma.roles.findUnique({ where: { idRole: roleId } });
     return role ? role.nom_role : undefined;

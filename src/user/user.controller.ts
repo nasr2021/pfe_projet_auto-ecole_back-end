@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Delete, Get, Param, Post, Put, Query, Req, Res, UseGuards } from "@nestjs/common";
+import { BadRequestException, Body, Controller, Delete, Get, HttpException, HttpStatus, Param, Post, Put, Query, Req, Res, UploadedFile, UseGuards, UseInterceptors } from "@nestjs/common";
 import { User } from "./user.model";
 import { UserService } from "./user.service";
 import { Request, Response } from "express";
@@ -7,12 +7,39 @@ import { RolesGuard } from "src/auth/auth.guard";
 import { Roles } from '../auth/roles.decorator';
 import { AuthMiddleware } from "src/auth/AuthMiddleware";
 import { ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { UserDto } from "./dto";
+import { cars, condidat, moniteur } from "@prisma/client";
+import { FileInterceptor } from "@nestjs/platform-express";
 
-
+import { Express } from 'express'; 
+import { UpdatePasswordWithOTPDto } from "src/auth/dto";
 @Controller('api/user')
 
 export class UserController {
+ 
     constructor(private readonly userService: UserService) {}
+    @Post('upload')
+    @UseInterceptors(FileInterceptor('file'))
+    async uploadAvatar(@UploadedFile() file: Express.Multer.File): Promise<string> {
+      try {
+        if (!file) {
+          throw new BadRequestException('No file uploaded');
+        }
+        console.log('fileback', file)
+        const base64Data = file.buffer.toString('base64');
+      
+        const dataUrl = `data:${file.mimetype};base64,${base64Data}`;
+
+        const avatarUrl = await this.userService.saveAvatar(dataUrl);
+        console.log('avatarUrl', avatarUrl)
+        return avatarUrl;
+    
+      } catch (error) {
+        console.error('Error uploading avatar:', error.message);
+        throw error;
+      }
+    }
+
     @UseGuards(AuthMiddleware)
     @UseGuards(AuthGuard('jwt'))
     
@@ -21,7 +48,7 @@ export class UserController {
         console.log('req.user', req.user);
         const idCompteConnecte = req.user.sub;
         console.log('idCompteConnecte', idCompteConnecte)
-        const result = await this.userService.getAllUser(idCompteConnecte); // Fournir l'idCompteConnecte à la méthode
+        const result = await this.userService.getAllUser(idCompteConnecte); 
         return response.status(200).json({
             status: "ok",
             message: "Successfully fetched data!",
@@ -48,44 +75,24 @@ export class UserController {
         return this.userService.deleteUser(idUser);
     }
     @UseGuards(AuthMiddleware)
-
     @UseGuards(AuthGuard('jwt'))
     @Put(':id')
-    async updateUser(@Param('id') idUser: number, @Body() postData: User): Promise<User> {
-        return this.userService.updateUser(idUser, postData);
-    }
-    @UseGuards(AuthGuard('jwt'))
-    @UseGuards(AuthMiddleware)
-    @Get('account')
-async getUserByAccount(@Query('account') account: string, @Req() req: Request & { user: { sub: number } }): Promise<User[] | null> {
-    console.log('account:', account);
-    let isAccountTrue: boolean | null = null;
-
-    if (account === 'true') {
-        isAccountTrue = true;
-    } else if (account === 'false') {
-        isAccountTrue = false;
+    async updateUser(@Param('id') idUser: number, @Body() postData: UserDto): Promise<User> {
+        console.log('avatar', postData.avatar)
+      return this.userService.updateUser(Number(idUser), postData);
     }
 
-    console.log('isAccountTrue:', isAccountTrue);
-    console.log('req.user', req.user);
-    const idCompteConnecte = req.user.sub;
-    console.log('idCompteConnecte', idCompteConnecte)
-    if (isAccountTrue !== null) {
-        const users = await this.userService.getUserByAccount(isAccountTrue, idCompteConnecte);
-        console.log('users:', users);
-        return users !== null ? users : null;
-    } else {
-        console.log('Calling getAllUser');
-        return this.userService.getAllUser(idCompteConnecte);
-    }
-}
 @UseGuards(AuthGuard('jwt'))
 @UseGuards(AuthMiddleware)
 @Get('user/autoecole')
-async getAllUsersByAutoEcoleId(@Req() req: Request & { user: { sub: number } }): Promise<User[]> {
-  const userId = req.user.sub;
-  return this.userService.getAllUsersByAutoEcoleId(userId);
+async getAllUsersByAutoEcoleId(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<User[]> {
+  console.log('aaa', req.user);
+  
+    const userId = req.user.sub;
+    
+    const roleId = req.user.idRole;
+    console.log("userId2", userId);
+  return this.userService.getAllUsersByAutoEcoleId(Number(userId), roleId);
 }
 @UseGuards(AuthGuard('jwt'))
 @UseGuards(AuthMiddleware)
@@ -97,31 +104,25 @@ async getAllUsersByAutoEcoleIdAndRole(
   const userId = req.user.sub;
   return this.userService.getAllUsersByAutoEcoleIdAndRole(role, userId);
 }
-    // @Get('account')
-    // async getUserByAccount(@Query('account') account: string,@Req() req: Request & { user: { sub: number } }): Promise<User[] | null> {
-    //     console.log('account:', account);
-    //     let isAccountTrue: boolean | null = null;
-    
-    //     if (account === 'true') {
-    //         isAccountTrue = true;
-    //     } else if (account === 'false') {
-    //         isAccountTrue = false;
-    //     }
-    
-    //     console.log('isAccountTrue:', isAccountTrue);
-    //     console.log('req.user', req.user);
-    //     const idCompteConnecte = req.user.sub;
-    //     console.log('idCompteConnecte', idCompteConnecte)
-    //     if (isAccountTrue !== null) {
-    //         const user = await this.userService.getUserByAccount(isAccountTrue,idCompteConnecte);
-    //         console.log('user:', user);
-    //         return user ? [user] : null;
-    //     } else {
-    //         console.log('Calling getAllUser');
-    //         return this.userService.getAllUser(idCompteConnecte);
-    //     }
-    // }
-    
+@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthMiddleware)
+@Get('moniteur')
+async getMoniteur(
+  @Req() req: Request & { user: { sub: number } }
+): Promise<moniteur[]> {
+  const userId = req.user.sub;
+  return this.userService.getMoniteur( userId);
+}
+
+@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthMiddleware)
+@Get('condidat')
+async getCandidat(
+  @Req() req: Request & { user: { sub: number } }
+): Promise<condidat[]> {
+  const userId = req.user.sub;
+  return this.userService.getCandidat( userId);
+}
     @Get(':idUser')
 async getUserById(@Param('idUser') idUser: string): Promise<User | null> {
     console.log('idUser:', idUser);
@@ -134,7 +135,30 @@ async getUserById(@Param('idUser') idUser: string): Promise<User | null> {
     console.log('Calling getUserById with userId:', userId);
     return this.userService.getUserById(userId);
 }
-    
-
+@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthMiddleware)
+@Post('update-password-with-otp')
+async updatePasswordWithOTP(@Body() dto: UpdatePasswordWithOTPDto): Promise<{ message: string }> {
+  try {
+    await this.userService.updatePasswordWithOTP(dto);
+    return { message: 'Password updated successfully with OTP.' };
+  } catch (error) {
+    throw new HttpException('Failed to update password with OTP.', HttpStatus.BAD_REQUEST);
+  }
+}
+@UseGuards(AuthGuard('jwt'))
+@UseGuards(AuthMiddleware)
+@Post('generate-and-send-otp')
+async generateAndSendOTP( @Req() req: Request & { user: { sub: number } }): Promise<{ message: string }> {
+try {
+  const userId = req.user.sub;
+  console.log('userId', userId)
+  await this.userService.generateAndSendOTP(Number(userId));
+  return { message: 'OTP sent successfully.' };
+} catch (error) {
+  console.error('Failed to generate and send OTP:', error);
+  throw new Error('Failed to generate and send OTP.');
+}
+}
    
 }

@@ -15,6 +15,12 @@ import { join } from 'path';
 import { AutoEcoleModule } from './AutoEcole/autoecole.module';
 import { TarifModule } from './Tarif/tarif.module';
 import { CarsModule } from './Cars/cars.module';
+import { ServiceModule } from './service/service.module';
+import { GerantModule } from './gerant/gerant.module';
+import { CandidatModule } from './candidat/candidat.module';
+import { DemandModule } from './Demande/demande.module';
+import * as bodyParser from 'body-parser';
+import { MulterModule } from '@nestjs/platform-express';
 
 @Module({
   imports: [
@@ -28,6 +34,17 @@ import { CarsModule } from './Cars/cars.module';
     AutoEcoleModule,
     TarifModule,
     CarsModule,
+    ServiceModule,
+    GerantModule,
+    CandidatModule,
+    DemandModule,
+    ServeStaticModule.forRoot({
+      rootPath: join(__dirname, '..', 'src', 'assets'),
+      serveRoot: '/assets',
+    }),   
+    MulterModule.register({
+      dest: './uploads', // Dossier de destination des fichiers uploadés
+    }), 
   ],
   controllers: [AppController],
   providers: [AppService, AuthService],

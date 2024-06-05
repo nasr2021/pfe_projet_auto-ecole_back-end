@@ -19,6 +19,14 @@ export class AuthService {
     });
     return role ? role.idRole : null;
   }
+  async getRoleNameByRoleId(roleId: number): Promise<string | null> {
+    const role = await this.prismaService.roles.findFirst({
+      where: { idRole: roleId },
+      select: { nom_role: true },
+    });
+    return role ? role.nom_role : null;
+  }
+  
   async signup(dto: AuthDto): Promise<Tokens> {
     try {
       const hash = await bcrypt.hash(dto.password, 10);
@@ -52,11 +60,13 @@ export class AuthService {
   
 
   async comparePasswords(plainPassword: string, hashedPassword: string): Promise<boolean> {
+   console.log('hashedPassword', hashedPassword)
+   console.log('plainPassword', plainPassword)
     return plainPassword === hashedPassword;
   }
   
   
-  async login(dto: AuthDto): Promise<Tokens> {
+  async login(dto: AuthDto): Promise<{ tokens: Tokens, role: string }> {
     console.log('Attempting login with username:', dto.username);
     const user = await this.prismaService.user.findFirst({
       where: {
@@ -82,12 +92,17 @@ export class AuthService {
     }
     console.log('Login successful for username:', dto.username);
     const idRole = user.idRole;
-
+    const role = await this.prismaService.roles.findUnique({
+      where: {
+        idRole: user.idRole, 
+      },
+      select: {
+        nom_role: true, 
+      },
+    })
     const tokens = await this.getToken(user.idUser, user.username, idRole);
-    return tokens;
+    return { tokens, role: role.nom_role }; 
   }
-
-
 
 async logout(idUser: number): Promise<number> {
   await this.prismaService.user.updateMany({

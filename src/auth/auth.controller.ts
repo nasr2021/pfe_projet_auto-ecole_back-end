@@ -25,7 +25,7 @@ export class AuthController {
   
     @Post('login')
     @HttpCode(HttpStatus.OK)
-    async login(@Body() dto: AuthDto): Promise<Tokens> {
+    async login(@Body() dto: AuthDto): Promise<{ tokens: Tokens, role: string }> {
         try {
             const tokens = await this.authservice.login(dto);
             return tokens;
@@ -68,6 +68,14 @@ export class AuthController {
     
             throw new Error('Une erreur est survenue lors du rafraîchissement du token');
         }
+    }
+    @UseGuards(AuthMiddleware)
+    @UseGuards(AuthGuard('jwt'))
+    @Get('/role')
+    async getRoleNameByRoleId(@Req() req: AuthenticatedRequest): Promise<string | null> {
+        const roleIdString = req.user?.idRole; 
+        const roleId = roleIdString ? parseInt(roleIdString, 10) : null; 
+        return this.authservice.getRoleNameByRoleId(roleId);
     }
     
 }

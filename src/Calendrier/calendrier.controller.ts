@@ -1,83 +1,113 @@
-import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpCode, HttpException, HttpStatus, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { CompteService } from "src/Compte/compte.service";
 import { AuthMiddleware, AuthenticatedRequest } from "src/auth/AuthMiddleware";
 import { RolesGuard } from "src/auth/auth.guard";
 import { Roles } from "src/auth/roles.decorator";
-import { CalendrierService } from "./calendrier.service";
+import { CalendrierService, evenementWithStats } from "./calendrier.service";
 import { Calendrier } from "./calendrier.model";
 import { ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { CalendrierDto } from "./dto";
 
 @Controller('api/calendrier')
 
 export class CalendrierController {
       
     constructor(private calendrierService: CalendrierService) {}
- @UseGuards(AuthMiddleware)
-@UseGuards(AuthGuard('jwt'))
-@Get()
-async getAllCalendrier(@Req() request, @Res() response, @Req() req: AuthenticatedRequest) {
-    try {console.log('req.user', req.user);
-    const idCompteConnecte = req.user?.idUser;
-    console.log('idCompteConnecte', idCompteConnecte)
-        const comptes = await this.calendrierService.getAllCalendrier(idCompteConnecte);
-        return response.status(200).json({
-            status: 'success',
-            message: 'Comptes récupérés avec succès.',
-            data: comptes,
-        });
-    } catch (error) {
-        return response.status(500).json({
-            status: 'error',
-            message: 'Une erreur s\'est produite lors de la récupération des comptes.',
-            error: error.message,
-        });
+
+    @UseGuards(AuthMiddleware)
+    @UseGuards(AuthGuard('jwt')) 
+    @Get('statistiquesEvent')
+    async getEvenementStatistiques(@Req() req: Request & { user: { sub: number, idRole:string } }): Promise<evenementWithStats[]> {
+      const idUser = req.user.sub;
+  const userole = req.user.idRole
+      try {
+        const statistiques = await this.calendrierService.getEvenementStatistiques(idUser,userole);
+        return statistiques;
+      } catch (error) {
+        throw new Error(`Erreur lors de la récupération des statistiques des événements : ${error.message}`);
+      }
     }
-}
-
-
-    // @UseGuards(AuthMiddleware)
-    // @UseGuards(AuthGuard('jwt'))
-    // @Get(':idEvenement')
-    // async getCalendrierById(@Param('idEvenement') idEvenement: number): Promise<Calendrier | null> {
-    //     return this.calendrierService.getCalendrierById(idEvenement);
-    // } 
-    
     
     @UseGuards(AuthMiddleware)
-    @UseGuards(AuthGuard('jwt'),RolesGuard)
-    @Roles('manager')
+    @UseGuards(AuthGuard('jwt'))
+ 
     @Delete(':idEvenement')
     async deleteCalendrier(@Param('idEvenement') idEvenement:number):Promise<Calendrier>{
-        console.log("ID de l'utilisateur à supprimer:", idEvenement); 
+        console.log("ID de evenement à supprimer:", idEvenement); 
         return this.calendrierService.deleteCalendrier(idEvenement);
 
     }
     @UseGuards(AuthMiddleware)
-    @UseGuards(AuthGuard('jwt'),)
+    @UseGuards(AuthGuard('jwt'))
     @Put(':idEvenement')
-    async updateCalendrier(@Param('idEvenement') idEvenement:number,@Body()data:any):Promise<Calendrier>{
-        return this.calendrierService.updateCalendrier(idEvenement,data);
-
+    async updateCalendrier(@Param('idEvenement') idEvenement:number,@Body() data: Partial<CalendrierDto>,):Promise<Calendrier>{
+        const calendrierToUpdate: Calendrier = {
+            nom_evenement: data.nom_evenement,
+            date_debut: data.date_debut,
+            date_fin: data.date_fin,
+            description: data.description,
+            idMoniteur: data.idMoniteur,
+            idVoiture:data.idVoiture,
+            idUser:data.idUser,
+            type:data.type
+            
+        };
+        const result  = await this.calendrierService.updateCalendrier(idEvenement, calendrierToUpdate);
+        if (typeof result === 'string') {
+            throw new HttpException(result, HttpStatus.CONFLICT);
+          }
+          return result;
     }
     @UseGuards(AuthMiddleware)
 
     @UseGuards(AuthGuard('jwt'))
     @Post()
-    async postCalendrier(@Body() postData: Calendrier, @Req() req: AuthenticatedRequest): Promise<Calendrier> {
-        const sub = req.user?.idUser; 
-        return this.calendrierService.createCalendrier(postData,sub);
+    async postCalendrier(@Body() postData: any, @Req() req: Request & { user: { sub: number } }): Promise<Calendrier> {
+        const sub = req.user.sub;
+        console.log("postData", postData);
+        const result = await this.calendrierService.createCalendrier(postData, Number(sub));
+    
+        if (typeof result === 'string') {
+          throw new HttpException(result, HttpStatus.CONFLICT);
+        }
+    
+        return result;
       }
-      
       @UseGuards(AuthMiddleware)
       @UseGuards(AuthGuard('jwt'))
-    @Get('autoecole')
-    async getAllCalendrierByAutoEcole( @Req() req: AuthenticatedRequest): Promise<Calendrier[]> {
-        try { const sub = req.user?.idUser; 
-            const calendriers = await this.calendrierService.getAllCalendrierByAutoEcole(sub);
-            return calendriers;
-        } catch (error) {
-            throw new Error(`Erreur lors de la récupération des calendriers de l'auto-école : ${error.message}`);
-        }
-    }
+      @Get('user')
+      async getCalendriersByUser(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<Calendrier[]> {
+        const userId = req.user.sub;
+        const userole = req.user.idRole;
+        console.log('userId',userId)
+        console.log('userole',userole)
+        return this.calendrierService.getCalendriersByUserId(userId,userole);
+      }
+      @UseGuards(AuthMiddleware)
+      @UseGuards(AuthGuard('jwt'))
+      @Get('historiqe')
+      async getHistory(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<Calendrier[]> {
+        const userId = req.user.sub;
+        const userole = req.user.idRole;
+        console.log('userId',userId)
+        console.log('userole',userole)
+        return this.calendrierService.getHistory(userId,userole);
+      }
+      @UseGuards(AuthMiddleware)
+      @UseGuards(AuthGuard('jwt'))
+      @Get('Event')
+      async getEvent(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<Calendrier[]> {
+        const userId = req.user.sub;
+        const userole = req.user.idRole;
+        console.log('userId',userId)
+        console.log('userole',userole)
+        return this.calendrierService.getEvent(userId,userole);
+      }
+      @UseGuards(AuthMiddleware)
+      @UseGuards(AuthGuard('jwt'))
+      @Get('getAllCalendrier/:id')
+      async getAllCalendrier(@Param('id') idUser: number): Promise<Calendrier[]> {
+        return this.calendrierService.getAllCalendrier(Number(idUser));
+      }
 }

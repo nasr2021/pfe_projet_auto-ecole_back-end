@@ -1,16 +1,17 @@
-import { Body, Controller, Delete, Get, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { AuthMiddleware, AuthenticatedRequest } from "src/auth/AuthMiddleware";
 import { PackService } from "./pack.service";
 import { Forfait } from "./pack.model";
 import { ApiSecurity, ApiTags } from "@nestjs/swagger";
+import { PackDto } from "./dto";
 
 @Controller('api/pack')
 
 export class PackController {
     constructor(private packService: PackService) {}
-    @UseGuards(AuthMiddleware)
-@UseGuards(AuthGuard('jwt'))
+//     @UseGuards(AuthMiddleware)
+// @UseGuards(AuthGuard('jwt'))
 @Get()
 async getAllPacks(@Req() request, @Res() response) {
     try {
@@ -29,62 +30,38 @@ async getAllPacks(@Req() request, @Res() response) {
     }
 }
 
-// @UseGuards(AuthMiddleware)
-// @UseGuards(AuthGuard('jwt'))
-// @Get(':idForfait')
-// async getPackById(@Param('idForfait') idForfait: number): Promise<Forfait | null> {
-//     return this.packService.getPackById(idForfait);
-// } 
+ @UseGuards(AuthMiddleware)
+ @UseGuards(AuthGuard('jwt'))
+@Get(':idForfait')
+async getPackById(@Param('idForfait') idForfait: number): Promise<Forfait | null> {
+    return this.packService.getForfaitById(idForfait);
+} 
 @UseGuards(AuthMiddleware)
-@UseGuards(AuthGuard('jwt'))
-//,RolesGuard)
-//@Roles('manager')
-@Delete(':idForfait')
-async DeletePack(@Param('idForfait') idForfait:number):Promise<Forfait>{
-    console.log("ID de Forfait à supprimer:", idForfait); 
-    return this.packService.deletePack(idForfait);
+ @UseGuards(AuthGuard('jwt'))
+@Post()
+async createOrUpdateForfait(@Body() forfaitDto: PackDto): Promise<Forfait> {
+    console.log('forfaitDto', forfaitDto)
+    return this.packService.createOrUpdateForfait(forfaitDto);
+}
+@Delete(':id')
+async deleteForfait(@Param('id') forfaitId: string): Promise<void> {
+    const id = parseInt(forfaitId, 10);
 
-}
-@UseGuards(AuthMiddleware)
-@UseGuards(AuthGuard('jwt'),)
-@Put(':idForfait')
-async updatePack(@Param('idForfait') id:number,@Body()data:any):Promise<Forfait>{
-    return this.packService.updatePack(id,data);
-
-}
-    @UseGuards(AuthMiddleware)
-    @UseGuards(AuthGuard('jwt'))
-    @Post()
-    async postPack(@Body() postData: Forfait, @Req() req: AuthenticatedRequest): Promise<Forfait> {
-        const sub = req.user?.idUser; 
-        return this.packService.createPack(postData,sub );
+    try {
+        await this.packService.deleteForfait(id);
+    } catch (error) {
+        if (error instanceof NotFoundException) {
+            throw new NotFoundException(error.message);
+        }
+        throw error; 
     }
-    @UseGuards(AuthMiddleware)
-    @UseGuards(AuthGuard('jwt'))
-    @Get('/moniteur')
-    async getAllPacksByMoniteur(@Req() request,@Req() req: AuthenticatedRequest): Promise<Forfait[]> {
-        const sub = req.user?.idUser;
-        console.log('sub',sub);
-        return await this.packService.getAllPacksByMoniteur(sub);
-    }
-    @UseGuards(AuthMiddleware)
-    @UseGuards(AuthGuard('jwt'))
-    @Get('/custom')
-async getAllPacksCustom(): Promise<Forfait[]> {
-    return await this.packService.getAllPacksCustom();
-}
-@UseGuards(AuthMiddleware)
-@UseGuards(AuthGuard('jwt'))
-@Get('/except-custom')
-async getAllPacksExceptCustom(): Promise<Forfait[]> {
-    return await this.packService.getAllPacksExceptCustom();
 }
 @UseGuards(AuthMiddleware)
 @UseGuards(AuthGuard('jwt'))
 @Post(':packId/acheter')
-async acheterPack(@Req() request,@Req() req: AuthenticatedRequest): Promise<void> {
-    const userId = req.user?.idUser; 
-
+async acheterPack(@Req() request,@Req() req: Request & { user: { sub: number} }): Promise<void> {
+    const userId = req.user.sub; 
+console.log(' req.user.sub', req.user.sub)
     const packId = parseInt(request.params['packId'], 10); 
 
     await this.packService.acheterPack(packId, userId);
@@ -94,5 +71,25 @@ async acheterPack(@Req() request,@Req() req: AuthenticatedRequest): Promise<void
 @Post('demandes/:demandeId/accepter')
     async accepterDemandePack(@Param('demandeId') demandeId: number): Promise<void> {
         await this.packService.accepterDemandePack(demandeId);
+    }
+    @UseGuards(AuthMiddleware)
+@UseGuards(AuthGuard('jwt'))
+ @Post('custom')
+async createCustomForfait(@Body() forfaitData: PackDto, @Req() req: Request & { user: { sub: number} }): Promise<Forfait> {
+        try {
+            const userId = req.user.sub; 
+            console.log(' req.user.sub', req.user.sub)
+            const customForfait = await this.packService.createCustomForfait(forfaitData, Number(userId));
+            return customForfait;
+        } catch (error) {
+            throw new NotFoundException(error.message);
+        }
+    }
+
+    @UseGuards(AuthMiddleware)
+@UseGuards(AuthGuard('jwt'))
+@Post('demandes/:demandeId/refuser')
+    async refuserDemandePack(@Param('demandeId') demandeId: number): Promise<void> {
+        await this.packService.refuserDemandePack(demandeId);
     }
 }
