@@ -17,7 +17,7 @@ export class ServiceController {
     @UseGuards(AuthMiddleware)
     @UseGuards(AuthGuard('jwt'))
   @Post()
-  async createService(@Body() data: ServiceDto): Promise<service> {
+  async createService(@Body() data: any): Promise<service> {
     return this.serviceService.createService(data);
   }
   @UseGuards(AuthMiddleware)

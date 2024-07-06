@@ -20,4 +20,5 @@ export class autoecole implements Prisma.autoecoleCreateInput {
     qualification?: string | null;
     candidats?:number|null;
     date_creation?:Date;
+    status?:string;
    }

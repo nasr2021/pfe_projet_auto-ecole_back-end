@@ -6,6 +6,7 @@ import { TarifDto } from "./dto";
 
 import { ServiceDto } from "src/service/dto";
 import { Tarif } from "./tarif.model";
+import { Decimal } from "@prisma/client/runtime";
 
 
 @Injectable()
@@ -16,7 +17,7 @@ export class TarifService{
     async addTarification(
         userId: number,
         serviceName: string,
-        tarif: number,role:string
+        tarif: any,role:string
     ): Promise<tarification> {
         try {
            const roles= await this.prisma.roles.findUnique({

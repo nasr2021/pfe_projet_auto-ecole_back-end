@@ -2,17 +2,19 @@ import { Prisma } from "@prisma/client";
 import { Calendrier } from "src/Calendrier/calendrier.model";
 import { User } from "src/user/user.model";
 
-export class Cars implements Prisma.carsCreateInput {
+export class Voitures implements Prisma.voituresCreateInput {
     marque?: string;
     modele?: string;
     annee?: number;
+    description?: string;
+    matricule?: string;
     couleur?: string;
     statut?: string;
-    gerantecole?: Prisma.gerantecoleCreateNestedOneWithoutCarsInput;
-    autoecole?: Prisma.autoecoleCreateNestedOneWithoutCarsInput;
-    moniteur?: Prisma.moniteurCreateNestedOneWithoutCarsInput;
-    user_cars_idUserTouser?: Prisma.userCreateNestedOneWithoutCars_cars_idUserTouserInput;
-    calendrier?: Prisma.calendrierCreateNestedManyWithoutCarsInput;
+    gerantecole?: Prisma.gerantecoleCreateNestedOneWithoutVoituresInput;
+    autoecole?: Prisma.autoecoleCreateNestedOneWithoutVoituresInput;
+    moniteur?: Prisma.moniteurCreateNestedOneWithoutVoituresInput;
+    // user_cars_idUserTouser?: Prisma.userCreateNestedOneWithoutVoitures_voitures_idUserTouserInput;
+    calendrier?: Prisma.calendrierCreateNestedManyWithoutVoituresInput;
     image?:string;
 
 }

@@ -1,7 +1,7 @@
 import { Injectable, NotFoundException, UnauthorizedException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
-import { Cars } from "./cars.model";
-import { cars } from "@prisma/client";
+import { Voitures } from "./cars.model";
+import { voitures } from "@prisma/client";
 import * as path from 'path';
 import * as fs from 'fs';
 
@@ -9,7 +9,7 @@ import * as fs from 'fs';
 export class CarsService {
   constructor(private prismaService: PrismaService) {}
 
-  async addCar(carDto: Cars, userId: number, roleId: string): Promise<Cars> {
+  async addCar(carDto: Voitures, userId: number, roleId: string): Promise<Voitures> {
     
     const existingUser = await this.prismaService.user.findUnique({ where: { idUser: Number(userId) } });
     if (!existingUser) {
@@ -39,7 +39,7 @@ export class CarsService {
     const idAutoEcole = gerant.autoecole[0].id;
     console.log('Autoecole ID:', idAutoEcole);
     const currentDate = new Date();
-    const createdCar = await this.prismaService.cars.create({
+    const createdCar = await this.prismaService.voitures.create({
         data: {
             ...carDto,
             date_creation:currentDate,
@@ -50,14 +50,14 @@ export class CarsService {
 
     return createdCar;
 }
-async updateCar(carId: number, carDto: Cars): Promise<Cars> {
+async updateCar(carId: number, carDto: Voitures): Promise<Voitures> {
 
-  const existingCar = await this.prismaService.cars.findUnique({ where: { id: Number(carId) } });
+  const existingCar = await this.prismaService.voitures.findUnique({ where: { id: Number(carId) } });
   if (!existingCar) {
       throw new NotFoundException(`Car with ID ${carId} not found`);
   }
 
-  const updatedCar = await this.prismaService.cars.update({
+  const updatedCar = await this.prismaService.voitures.update({
       where: { id: Number(carId) },
       data: { ...carDto }
   });
@@ -82,17 +82,17 @@ async saveAvatar(base64Data: string): Promise<string> {
 
 async deleteCar(carId: number): Promise<void> {
 
-  const existingCar = await this.prismaService.cars.findUnique({ where: { id: carId } });
+  const existingCar = await this.prismaService.voitures.findUnique({ where: { id: carId } });
   if (!existingCar) {
       throw new NotFoundException(`Car with ID ${carId} not found`);
   }
 
-  await this.prismaService.cars.delete({ where: { id: carId } });
+  await this.prismaService.voitures.delete({ where: { id: carId } });
 }
 
 
 
-async getVoiture(idUser: number): Promise<Cars[]> {
+async getVoiture(idUser: number): Promise<Voitures[]> {
   const connectedUser = await this.prismaService.gerantecole.findUnique({
       where: { idGerant: Number(idUser) },
       select: {
@@ -105,7 +105,7 @@ async getVoiture(idUser: number): Promise<Cars[]> {
   }
 
   const idAutoEcole = Number(connectedUser.autoecole[0].id);
-  const cars = await this.prismaService.cars.findMany({
+  const cars = await this.prismaService.voitures.findMany({
       where: {
           idAutoEcole: idAutoEcole
       }
@@ -117,10 +117,10 @@ async getVoiture(idUser: number): Promise<Cars[]> {
 
 
 
-  async getAllCars(): Promise<Cars[]> {
-    return this.prismaService.cars.findMany();
+  async getAllCars(): Promise<Voitures[]> {
+    return this.prismaService.voitures.findMany();
   }
-  async getAllCarsByUserId(userId: number): Promise<Cars[]> {
+  async getAllCarsByUserId(userId: number): Promise<Voitures[]> {
 
     const gerant = await this.prismaService.gerantecole.findFirst({
         where: { idGerant: Number(userId) },
@@ -134,15 +134,15 @@ async getVoiture(idUser: number): Promise<Cars[]> {
     const idAutoEcole = gerant.autoecole[0].id;
 
   
-    const cars = await this.prismaService.cars.findMany({
+    const cars = await this.prismaService.voitures.findMany({
         where: { idAutoEcole:Number(idAutoEcole) }
     });
 
     return cars;
 }
-async assignCarToMoniteur(carId: number, moniteurId: number): Promise<Cars> {
+async assignCarToMoniteur(carId: number, moniteurId: number): Promise<Voitures> {
 
-  const car = await this.prismaService.cars.findUnique({
+  const car = await this.prismaService.voitures.findUnique({
       where: { id: Number(carId) },
   });
   if (!car) {
@@ -185,7 +185,7 @@ if(roleName=='moniteur'){
 //     });
 // }
 
-const updatedCar = await this.prismaService.cars.update({
+const updatedCar = await this.prismaService.voitures.update({
     where: { id: Number(carId) },
     data: {
       idUser:Number(moniteurId),
@@ -196,7 +196,7 @@ const updatedCar = await this.prismaService.cars.update({
 });
 return updatedCar;
 }else if(roleName=='ecole'){
-const updatedCar = await this.prismaService.cars.update({
+const updatedCar = await this.prismaService.voitures.update({
   where: { id: Number(carId) },
   data: {
     Ger_idUser:Number(moniteurId),
@@ -217,7 +217,7 @@ if(roleName=='moniteur'){
     where: { idMoniteur: Number(moniteurId) },
 });
   if (car.idUser) {
-    await this.prismaService.cars.update({
+    await this.prismaService.voitures.update({
         where: { id: Number(carId) },
         data: {
        
@@ -228,7 +228,7 @@ if(roleName=='moniteur'){
     });
 }
 
-const updatedCar = await this.prismaService.cars.update({
+const updatedCar = await this.prismaService.voitures.update({
     where: { id: Number(carId) },
     data: {
       idUser:Number(moniteurId),
@@ -243,7 +243,7 @@ return updatedCar;
     where: { idGerant: Number(moniteurId) }
 });
   if (car.idUser) {
-    await this.prismaService.cars.update({
+    await this.prismaService.voitures.update({
         where: { id: Number(carId) },
         data: {
           gerantecole:{disconnect: true},
@@ -252,7 +252,7 @@ return updatedCar;
         }
     });
 }
-const updatedCar = await this.prismaService.cars.update({
+const updatedCar = await this.prismaService.voitures.update({
   where: { id: Number(carId) },
   data: {
     Ger_idUser:Number(moniteurId),
@@ -267,8 +267,8 @@ return updatedCar;
 }
 }
 
-  async getCarById(carId: number): Promise<Cars> {
-    const car = await this.prismaService.cars.findUnique({
+  async getCarById(carId: number): Promise<Voitures> {
+    const car = await this.prismaService.voitures.findUnique({
       where: { id: Number(carId) },
     });
 

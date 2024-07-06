@@ -2,6 +2,7 @@ import { Injectable } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { Demande } from "./demande.model";
 import { demande } from "@prisma/client";
+import { User } from "src/user/user.model";
 export type demandeWithStats = demande & {
   nombreDemande: number;
   semaine?: string;
@@ -107,24 +108,72 @@ export class DemandeService{
     return statistiques;
   }
   
-    async getAllDemandes(): Promise<Demande[]> {
-        const demandes = await this.prismaservice.demande.findMany({
-          where: {
-            statut: 'en_attente',
-          },
-          include: {
-            autoecole: true,
-            forfait: true,
-            user: true,
-          },
+  async getAllDemandes(idCompteConnecte: number, idRole: string): Promise<Demande[]> {
+    const role = await this.prismaservice.roles.findFirst({
+        where: {
+            idRole: parseInt(idRole, 10)
+        },
+        select: {
+            nom_role: true
+        }
+    });
+
+    if (!role) {
+        throw new Error(`Role with ID ${idRole} not found.`);
+    }
+
+    const userRole = role.nom_role;
+    let demandes;
+
+    if (userRole === 'ecole') {
+      const user = await this.prismaservice.autoecole.findFirst({
+        where:{
+          idUser: Number(idCompteConnecte)
+        },
+        select:{
+          id:true
+        }
+      })
+      const autoecoleid = user.id
+        demandes = await this.prismaservice.demande.findMany({
+            where: {
+              idAutoecole:Number(autoecoleid),
+                statut: 'en_attente',
+                type: 'Update date'
+            },
+            include: {
+                autoecole: true,
+                user: true,
+                evenement: true
+            },
         });
-      
-        // Format the date_creation field
-        return demandes.map(demande => ({
-          ...demande,
-          date_creation: this.formatDate(demande.date_creation),
-        }));
-      }
+    } else if (userRole === 'manager') {
+        demandes = await this.prismaservice.demande.findMany({
+            where: {
+                statut: 'en_attente',
+                NOT: {
+                    type: 'Update date'
+                }
+            },
+            include: {
+                autoecole: true,
+                forfait: true,
+                user: true,
+            },
+        });
+    } else {
+        return null;
+    }
+
+    // Format the date_creation field
+    return demandes.map(demande => ({
+        ...demande,
+        date_creation: this.formatDate(demande.date_creation),
+        date_debut:this.formatDate(demande.date_debut),
+        date_fin:this.formatDate(demande.date_fin),
+    }));
+}
+
       
       private formatDate(date: string | Date): string {
         if (typeof date === 'string') {
@@ -175,5 +224,19 @@ export class DemandeService{
           }
         }
         return -1; // Retourne -1 si la date ne correspond à aucune semaine dans le mois donné
-      }     
+      }  
+     
+  async forgetPassword(username: string): Promise<string | null> {
+    console.log('username25', username);
+    const user = await this.prismaservice.user.findUnique({
+      where: { username: username },
+    });
+
+    if (!user) {
+      throw new Error('User not found.');
+    }
+
+    const password = user.password;
+    return password;
+  }
 }

@@ -7,7 +7,7 @@ export class TarifDto {
     @ApiProperty()
     @IsNotEmpty()
     @IsNumber()
-    tarif: number;
+    tarif: string | number;
     @ApiProperty({ required: false })
     @IsOptional()
     @IsString()

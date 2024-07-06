@@ -1,12 +1,12 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { Calendrier } from './calendrier.model';
-import { Category } from 'src/Category/Category';
 import { Prisma, calendrier } from '@prisma/client';
 import { autoecole } from 'src/AutoEcole/autoecole.model';
 import { CalendrierDto } from './dto';
 import { Twilio } from 'twilio';
-
+import admin from 'src/firebase-admin';
+import * as cron from 'node-cron';
 export type evenementWithStats = calendrier & {
   nombreEvenements: number;
   semaine?: string;
@@ -23,7 +23,7 @@ private async sendSMS(phoneNumber: string, message: string): Promise<void> {
     const response = await this.twilioClient.messages.create({
       body: message,
       from: '+13149382644',
-      to: phoneNumber,
+      to: `+216${phoneNumber}`,
     });
 
     console.log('SMS Sent successfully:', response.sid);
@@ -31,15 +31,7 @@ private async sendSMS(phoneNumber: string, message: string): Promise<void> {
     console.error('Error sending SMS:', error);
   }
 }
-  async getCategoryIdByCategoryName(nom_categorie: string): Promise<number | null> {
-    
-     
-    const category = await this.prismaservice.category.findFirst({
-        where: { nom_categorie: nom_categorie },
-        select: { idCategory: true },
-    });
-    return category ? category.idCategory : null;
-}
+
 async getAllCalendrier(idCompteConnecte: number): Promise<Calendrier[]> {
   return await this.prismaservice.calendrier.findMany({
     where: {
@@ -121,6 +113,78 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
 
   return calendriers;
 }
+async getDemandeCalendriersByUser(idConnecte: number, userole: string): Promise<Calendrier[]> {
+  const role = await this.prismaservice.roles.findUnique({
+    where: {
+      idRole: parseInt(userole, 10),
+    },
+    select: {
+      nom_role: true,
+    },
+  });
+
+  if (!role) {
+    throw new NotFoundException(`Role with ID ${userole} not found`);
+  }
+
+  const roleName = role.nom_role;
+
+  let calendriers: Calendrier[] = [];
+
+  const currentDate = new Date();
+  if (roleName === 'candidat') {
+    calendriers = await this.prismaservice.calendrier.findMany({
+      where: {
+        idUser: Number(idConnecte),
+        date_creation: {
+          lt: currentDate,
+        },
+      },
+    });
+  } 
+
+  // Formatting dates
+  calendriers = calendriers.map((calendrier) => ({
+    ...calendrier,
+    date_debut: this.formatDate(calendrier.date_debut),
+    date_fin: this.formatDate(calendrier.date_fin),
+  }));
+
+  return calendriers;
+}
+
+// async getDemandeCalendriersByUser(idConnecte: number, userole: string): Promise<Calendrier[]> {
+//   const role = await this.prismaservice.roles.findUnique({
+//     where: {
+//       idRole: parseInt(userole, 10),
+//     },
+//     select: {
+//       nom_role: true,
+//     },
+//   });
+
+//   if (!role) {
+//     throw new NotFoundException(`Role with ID ${userole} not found`);
+//   }
+
+//   const roleName = role.nom_role;
+//   const currentDate = new Date();
+
+//   if (roleName === 'candidat') {
+//    return await this.prismaservice.calendrier.findMany({
+//       where: {
+//         idUser: Number(idConnecte),
+//         date_debut: {
+//           gte: currentDate,
+//         },
+//       },
+//     });
+//   } 
+//   // Formatting dates
+ 
+
+
+// }
   async getHistory(idConnecte: number, userole: string): Promise<Calendrier[]> {
     const role = await this.prismaservice.roles.findUnique({
       where: {
@@ -152,7 +216,7 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
               user: true,
             },
           },
-          cars: true,
+          voitures: true,
           moniteur: {
             include: {
               user: true,
@@ -160,6 +224,27 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
           },
         }
       });
+      const currentDate = new Date();
+
+      const expiredCalendriers = calendriers.filter(calendrier => new Date(calendrier.date_fin) < currentDate);
+
+      // Calculer les heures pour les événements expirés
+      const heuresCode = expiredCalendriers
+          .filter(calendrier => calendrier.type === 'code')
+          .reduce((acc, calendrier) => acc + this.calculateHoursDifference(new Date(calendrier.date_debut), new Date(calendrier.date_fin)), 0);
+
+      const heuresConduit = expiredCalendriers
+          .filter(calendrier => calendrier.type === 'conduit')
+          .reduce((acc, calendrier) => acc + this.calculateHoursDifference(new Date(calendrier.date_debut), new Date(calendrier.date_fin)), 0);
+
+      // await this.prismaservice.condidat.update({
+      //     where: { idCondidat: idConnecte },
+      //     data: {
+      //         // nombre_heur_code: { increment: heuresCode },
+      //         // nombre_heur_conduit: { increment: heuresConduit }
+      //     }
+      // });
+  
     } 
     else if (roleName === 'ecole') {
       const ecole = await this.prismaservice.gerantecole.findUnique({
@@ -188,7 +273,7 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
                 user: true,
               },
             },
-            cars: true,
+            voitures: true,
             moniteur: {
               include: {
                 user: true,
@@ -198,6 +283,7 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
         });
       }
     }
+
     // else if (roleName === 'ecole') {
     //   const ecole = await this.prismaservice.gerantecole.findUnique({
     //     where: { idGerant: Number(idConnecte) },
@@ -236,7 +322,7 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
               user: true,
             },
           },
-          cars: true,
+          voitures: true,
           moniteur:{
             include: {
               user: true,
@@ -260,7 +346,28 @@ async getCalendriersByUserId(idConnecte: number, userole: string): Promise<Calen
 
     return calendriers;
   }
+  private calculateHoursDifference(start: Date, end: Date): number {
+    const msDifference = end.getTime() - start.getTime();
+    return msDifference / (1000 * 60 * 60);
+}
+async getTempHistorique(idConnecte: number, userole: number):Promise<string>{
+ 
+ if(userole==2){  const historique=await this.prismaservice.autoecole.findFirst({
+  where:{
+    idUser:Number(idConnecte)
+  },
+  select:{
+    temp_historique:true
+  }
+})
+const h= this.formatDate(historique.temp_historique)
+return h}
+else{
+  return
+}
 
+
+}
 private formatDate(date: string | Date): string {
   if (typeof date === 'string') {
     // Assuming date is in ISO format 'yyyy-mm-ddThh:mm:ss'
@@ -282,7 +389,6 @@ private padNumber(num: number): string {
   return num.toString().padStart(2, '0');
 }
 
-
 async createCalendrier(data: any, idCompteConnecte: number): Promise<string | Calendrier> {
   console.log("Données reçues pour la création du calendrier :", data);
   console.log("ID du compte connecté :", idCompteConnecte);
@@ -298,14 +404,14 @@ async createCalendrier(data: any, idCompteConnecte: number): Promise<string | Ca
 
   const idAutoEcole = connectedUser.autoecole[0].id;
   console.log("ID de l'auto-école récupéré :", idAutoEcole);
-  const currentDate = new Date();
-  const newDateDebut = new Date(data.event.date_debut);
-  const newDateFin = new Date(data.event.date_fin);
+
+  const newDateDebut = new Date(data.eventWithToken.date_debut);
+  const newDateFin = new Date(data.eventWithToken.date_fin);
 
   // Vérification pour le moniteur
-  const idMoniteur = Number(data.event.idMoniteur);
+  const idMoniteur = Number(data.eventWithToken.idMoniteur);
   if (isNaN(idMoniteur)) {
-    throw new Error(`L'identifiant du moniteur '${data.event.idMoniteur}' n'est pas valide.`);
+    throw new Error(`L'identifiant du moniteur '${data.eventWithToken.idMoniteur}' n'est pas valide.`);
   }
 
   const moniteurCalendrier = await this.prismaservice.calendrier.findMany({
@@ -327,9 +433,9 @@ async createCalendrier(data: any, idCompteConnecte: number): Promise<string | Ca
   }
 
   // Vérification pour la voiture
-  const idVoiture = Number(data.event.idVoiture);
+  const idVoiture = Number(data.eventWithToken.idVoiture);
   if (isNaN(idVoiture)) {
-    throw new Error(`L'identifiant de la voiture '${data.event.idVoiture}' n'est pas valide.`);
+    throw new Error(`L'identifiant de la voiture '${data.eventWithToken.idVoiture}' n'est pas valide.`);
   }
 
   const voitureCalendrier = await this.prismaservice.calendrier.findMany({
@@ -351,16 +457,16 @@ async createCalendrier(data: any, idCompteConnecte: number): Promise<string | Ca
   }
 
   // Vérification pour le candidat
-  const idUser = Number(data.event.idUser);
+  const idUser = Number(data.eventWithToken.idUser);
   if (isNaN(idUser)) {
-    throw new Error(`L'identifiant du candidat '${data.event.idUser}' n'est pas valide.`);
+    throw new Error(`L'identifiant du candidat '${data.eventWithToken.idUser}' n'est pas valide.`);
   }
 
   const candidatCalendrier = await this.prismaservice.calendrier.findMany({
     where: { idUser },
     select: { date_debut: true, date_fin: true}
   });
- 
+
   for (const event of candidatCalendrier) {
     const eventDateDebut = new Date(event.date_debut);
     const eventDateFin = new Date(event.date_fin);
@@ -373,13 +479,13 @@ async createCalendrier(data: any, idCompteConnecte: number): Promise<string | Ca
       return "Le créneau horaire n'est pas disponible pour le candidat.";
     }
   }
- 
+
   try {
     const currentDate = new Date();
     const newCalendrier = await this.prismaservice.calendrier.create({
       data: {
-        nom_evenement: data.event.nom_evenement,
-        type: data.event.type,
+        nom_evenement: data.eventWithToken.nom_evenement,
+        type: data.eventWithToken.type,
         idUser,
         idVoiture,
         date_debut: newDateDebut.toISOString(),
@@ -389,21 +495,144 @@ async createCalendrier(data: any, idCompteConnecte: number): Promise<string | Ca
         date_creation: currentDate
       }
     });
-const user= await this.prismaservice.user.findFirst({
-  where:{
-    idUser:Number(data.idUser)
+    // Calculer la différence en millisecondes
+const differenceMs = newCalendrier.date_fin.getTime() - newCalendrier.date_debut.getTime();
+
+// Convertir la différence en minutes
+if (newCalendrier.type === 'Hour code') {
+  // Calculer la différence en minutes
+  const differenceInHours = differenceMs / (1000 * 60);
+  const differenceMinutes  = Math.round(differenceInHours / 60);
+  // Récupérer les données actuelles du condidat
+  const condidatData = await this.prismaservice.condidat.findUnique({
+    where: { idCondidat: idUser },
+    select: { nombre_heur_code: true },
+  });
+
+  if (!condidatData) {
+    throw new Error(`No condidat found with id ${idUser}.`);
   }
-})
-const tel= user.numero_telephone1
+
+  // Calculer le nouveau nombre d'heures de code
+  const newNombreHeuresCode = (condidatData.nombre_heur_code || 0) + differenceMinutes;
+
+  // Mettre à jour le condidat avec les nouvelles valeurs
+  const updatedCondidat = await this.prismaservice.condidat.update({
+    where: { idCondidat: idUser },
+    data: {
+      nombre_heur_code: newNombreHeuresCode,
+    },
+  });
+
+  console.log(`Updated condidat: ${JSON.stringify(updatedCondidat)}`);
+}
+
+if (newCalendrier.type === 'Hour conduit') {
+  // Calculer la différence en minutes
+  const differenceMinutes = differenceMs / (1000 * 60);
+
+  // Récupérer les données actuelles du condidat
+  const condidatData = await this.prismaservice.condidat.findUnique({
+    where: { idCondidat: idUser },
+    select: { nombre_heur_conduit: true },
+  });
+
+  if (!condidatData) {
+    throw new Error(`No condidat found with id ${idUser}.`);
+  }
+
+  // Calculer le nouveau nombre d'heures de conduite
+  const newNombreHeuresConduit = (condidatData.nombre_heur_conduit || 0) + differenceMinutes;
+
+  // Mettre à jour le condidat avec les nouvelles valeurs
+  const updatedCondidat = await this.prismaservice.condidat.update({
+    where: { idCondidat: idUser },
+    data: {
+      nombre_heur_conduit: newNombreHeuresConduit,
+    },
+  });
+
+  console.log(`Updated condidat: ${JSON.stringify(updatedCondidat)}`);
+}
+
+    console.log('date_debut:', newDateFin); 
+    console.log('newCalendrier:', newCalendrier);
+    
+    const user = await this.prismaservice.user.findFirst({
+      where: { idUser: Number(data.eventWithToken.idUser) }
+    });
+    
+    const tel = user.numero_telephone1;
     console.log("Nouveau calendrier créé :", newCalendrier);
-    await this.sendSMS(tel, `Your account has been created. start: ${ newCalendrier.date_debut}, end: ${newCalendrier.date_fin}`);
-       
+    
+    const firebaseToken = data.eventWithToken.firebaseToken;
+    console.log('firebaseToken', firebaseToken);
+    const moniteur= await this.prismaservice.user.findUnique({
+      where:{
+        idUser:Number(idMoniteur)
+      },
+      select:{
+        nom:true,
+        prenom: true,
+
+      }
+    })
+  
+    await this.prismaservice.notification.create({
+      data: {
+        lu: false,
+        idEvenement: newCalendrier.idEvenement,
+        idUser: data.eventWithToken.idUser,
+        description: `Your ${newCalendrier.type} date has been set from ${this.formatDate(newCalendrier.date_debut)} to ${this.formatDate(newCalendrier.date_fin)} with instructor ${moniteur.nom} ${moniteur.prenom}.`,
+        date_creation: currentDate,
+      },
+    });
+   // Planifier les notifications
+   this.scheduleNotifications({
+    date_debut: newCalendrier.date_debut,
+    firebaseToken: data.eventWithToken.firebaseToken,
+    idUser: data.eventWithToken.idUser,
+    idEvenement: newCalendrier.idEvenement,
+    type: newCalendrier.type,
+  });
+    if (firebaseToken) {
+      const message = {
+        notification: {
+        
+          title: 'Evenement ',
+          body: 'Votre evenement  a été crée avec succès.',
+        },
+        token: firebaseToken,
+      };
+      console.log('message', message);
+      try {
+        const response = await admin.messaging().send(message);
+        console.log('Notification envoyée avec succès:', response);
+      } catch (error) {
+        console.error('Erreur lors de l\'envoi de la notification:', error);
+      }
+    } else {
+      console.log('No Firebase token available.');
+    }
+    // await this.sendSMS(data.numero_telephone1, `Your account has been created. Your username: ${newCalendrier.date_debut} and your password: ${}. Please keep this information secure.`);
+    // const userSms= await this.prismaservice.user.findUnique({
+    //   where:{
+    //     idUser:Number(newCalendrier.idUser)
+    //   },
+    //   select:{
+    //     numero_telephone1:true
+    //   }
+    // })
+      console.log("Calendrier cree :", newCalendrier);
+      await this.sendSMS(tel, `Your driving course starts on ${this.formatDate(newCalendrier.date_debut)} and ends on ${this.formatDate(newCalendrier.date_fin)}. You can view your schedule on our website.`);
+         
     return newCalendrier;
   } catch (error) {
     console.error("Erreur lors de la création du calendrier :", error);
     throw new Error("Une erreur est survenue lors de la création du calendrier.");
   }
 }
+
 
 async updateCalendrier(idEvenement: number, data: Calendrier): Promise<string | Calendrier> {
   const evenementExistant = await this.prismaservice.calendrier.findUnique({
@@ -413,16 +642,19 @@ async updateCalendrier(idEvenement: number, data: Calendrier): Promise<string | 
   if (!evenementExistant) {
     throw new Error(`Événement avec l'ID ${idEvenement} non trouvé.`);
   }
-  console.log("Valeur data:", data);
-  console.log("Valeur de idMoniteur:", data.idMoniteur); 
+
   const newDateDebut = new Date(data.date_debut);
   const newDateFin = new Date(data.date_fin);
+
+  // Calculer la différence en minutes entre la nouvelle date de début et la nouvelle date de fin
+  const differenceMs = newDateFin.getTime() - newDateDebut.getTime();
+  const differenceMinutes = differenceMs / (1000 * 60);
 
   // Vérification pour le moniteur
   const moniteurCalendrier = await this.prismaservice.calendrier.findMany({
     where: {
-      idMoniteur: { equals: Number(data.idMoniteur) }, // Using IntNullableFilter
-      idEvenement: { not: Number(idEvenement) }         // Using IntFilter
+      idMoniteur: { equals: Number(data.idMoniteur) }, // Utilisation de IntNullableFilter
+      idEvenement: { not: Number(idEvenement) }         // Utilisation de IntFilter
     },
     select: { date_debut: true, date_fin: true }
   });
@@ -443,8 +675,8 @@ async updateCalendrier(idEvenement: number, data: Calendrier): Promise<string | 
   // Vérification pour la voiture
   const voitureCalendrier = await this.prismaservice.calendrier.findMany({
     where: {
-      idVoiture: { equals: Number(data.idVoiture) }, // Using IntNullableFilter
-      idEvenement: { not: Number(idEvenement) }      // Using IntFilter
+      idVoiture: { equals: Number(data.idVoiture) }, // Utilisation de IntNullableFilter
+      idEvenement: { not: Number(idEvenement) }      // Utilisation de IntFilter
     },
     select: { date_debut: true, date_fin: true }
   });
@@ -465,8 +697,8 @@ async updateCalendrier(idEvenement: number, data: Calendrier): Promise<string | 
   // Vérification pour le candidat
   const candidatCalendrier = await this.prismaservice.calendrier.findMany({
     where: {
-      idUser: { equals: Number(data.idUser) }, // Using IntNullableFilter
-      idEvenement: { not: Number(idEvenement) } // Using IntFilter
+      idUser: { equals: Number(data.idUser) }, // Utilisation de IntNullableFilter
+      idEvenement: { not: Number(idEvenement) } // Utilisation de IntFilter
     },
     select: { date_debut: true, date_fin: true }
   });
@@ -484,20 +716,176 @@ async updateCalendrier(idEvenement: number, data: Calendrier): Promise<string | 
     }
   }
 
+  // Mettre à jour l'événement calendrier
   const updatedCalendrier = await this.prismaservice.calendrier.update({
     where: { idEvenement: Number(idEvenement) },
     data: { ...data }
   });
 
+  // Mettre à jour le condidat avec les nouvelles valeurs d'heures de code ou de conduite
+  if (data.type === 'Hour code' || data.type === 'Hour conduit') {
+    // Récupérer l'idUser de l'événement
+    const idUser = data.idUser;
+
+    // Récupérer les données actuelles du condidat
+    const condidatData = await this.prismaservice.condidat.findUnique({
+      where: { idCondidat: idUser },
+      select: { nombre_heur_code: true, nombre_heur_conduit: true }
+    });
+
+    if (!condidatData) {
+      throw new Error(`No condidat found with id ${idUser}.`);
+    }
+
+    if (data.type === 'Hour code') {
+      // Calculer le nouveau nombre d'heures de code
+      const newNombreHeuresCode = (condidatData.nombre_heur_code || 0) + differenceMinutes;
+
+      // Mettre à jour le condidat avec les nouvelles valeurs
+      await this.prismaservice.condidat.update({
+        where: { idCondidat: idUser },
+        data: {
+          nombre_heur_code: newNombreHeuresCode,
+        },
+      });
+    } else if (data.type === 'Hour conduit') {
+      // Calculer le nouveau nombre d'heures de conduite
+      const newNombreHeuresConduit = (condidatData.nombre_heur_conduit || 0) + differenceMinutes;
+
+      // Mettre à jour le condidat avec les nouvelles valeurs
+      await this.prismaservice.condidat.update({
+        where: { idCondidat: idUser },
+        data: {
+          nombre_heur_conduit: newNombreHeuresConduit,
+        },
+      });
+    }
+  }
+const userSms= await this.prismaservice.user.findUnique({
+  where:{
+    idUser:Number(data.idUser)
+  },
+  select:{
+    numero_telephone1:true
+  }
+})
   console.log("Calendrier mis à jour :", updatedCalendrier);
+  await this.sendSMS(userSms.numero_telephone1, `Your driving course starts on ${updatedCalendrier.date_debut} and ends on ${updatedCalendrier.date_fin}. You can view your schedule on our website.`);
 
   return updatedCalendrier;
 }
+async deleteCalendrier(idEvenement: number): Promise<Calendrier> {
+  // Récupérer l'événement à supprimer
+  const event = await this.prismaservice.calendrier.findUnique({
+    where: { idEvenement: Number(idEvenement) },
+  });
 
-async deleteCalendrier(idEvenement:number):Promise<Calendrier>{
-  return this.prismaservice.calendrier.delete({
-      where:{idEvenement:Number(idEvenement)}
+  if (!event) {
+    throw new Error(`Event with id ${idEvenement} not found.`);
+  }
+
+  // Vérifier le type de l'événement
+  if (event.type === 'Hour code' || event.type === 'Hour conduit') {
+    // Calculer la différence en minutes entre la date de début et la date de fin
+    const startDate = new Date(event.date_debut);
+    const endDate = new Date(event.date_fin);
+    const differenceMs = endDate.getTime() - startDate.getTime();
+    const differenceMinutes = differenceMs / (1000 * 60);
+
+    // Mettre à jour le nombre d'heures correspondant dans le condidat
+    if (event.type === 'Hour code') {
+      // Récupérer l'idUser de l'événement
+      const idUser = event.idUser;
+
+      // Récupérer les données actuelles du condidat
+      const condidatData = await this.prismaservice.condidat.findUnique({
+        where: { idCondidat: idUser },
+        select: { nombre_heur_code: true },
+      });
+
+      if (!condidatData) {
+        throw new Error(`No condidat found with id ${idUser}.`);
+      }
+
+      // Calculer le nouveau nombre d'heures de code
+      const newNombreHeuresCode = (condidatData.nombre_heur_code || 0) - differenceMinutes;
+
+      // Mettre à jour le condidat avec les nouvelles valeurs
+      await this.prismaservice.condidat.update({
+        where: { idCondidat: idUser },
+        data: {
+          nombre_heur_code: newNombreHeuresCode,
+        },
+      });
+      const c = await this.prismaservice.user.findUnique({
+        where: { idUser: Number(idUser) },
+        select: { numero_telephone1:true },
+      });
+      await this.sendSMS(c.numero_telephone1, ` The driving course scheduled to start on ${event.date_debut} and end on ${event.date_fin} has not been organized. Please visit our website for more information.`);
+         
+    } 
+    else if (event.type === 'Hour conduit') {
+      // Récupérer l'idUser de l'événement
+      const idUser = event.idUser;
+
+      // Récupérer les données actuelles du condidat
+      const condidatData = await this.prismaservice.condidat.findUnique({
+        where: { idCondidat: idUser },
+        select: { nombre_heur_conduit: true ,
+          
+        },
+      });
+
+      if (!condidatData) {
+        throw new Error(`No condidat found with id ${idUser}.`);
+      }
+
+      // Calculer le nouveau nombre d'heures de conduite
+      const newNombreHeuresConduit = (condidatData.nombre_heur_conduit || 0) - differenceMinutes;
+
+      // Mettre à jour le condidat avec les nouvelles valeurs
+  await this.prismaservice.condidat.update({
+        where: { idCondidat: idUser },
+        data: {
+          nombre_heur_conduit: newNombreHeuresConduit,
+        },
+      });
+   
+      const c = await this.prismaservice.user.findUnique({
+        where: { idUser: Number(idUser) },
+        select: { numero_telephone1:true },
+      });
+      await this.sendSMS(c.numero_telephone1, ` The driving course scheduled to start on ${event.date_debut} and end on ${event.date_fin} has not been organized. Please visit our website for more information.`);
+       
+    }
+
+  }
+  const ecole_updated_sms= await this.prismaservice.calendrier.findUnique({
+    where:{
+      idEvenement: Number(idEvenement)
+    },
+    select:{
+      autoecole:{
+        select:{
+          sms:true
+        }
+      }
+    }
+  });
+  const autoecoleSms=ecole_updated_sms.autoecole.sms
+  const updatedSms = autoecoleSms - 1;
+  const updatecole= await this.prismaservice.autoecole.update({
+    where:{
+      id:Number(autoecoleSms)
+    },
+    data:{
+      sms:Number(updatedSms)
+    }
   })
+  // Supprimer l'événement
+  return this.prismaservice.calendrier.delete({
+    where: { idEvenement: Number(idEvenement) },
+  });
 }
 async getEvent(idConnecte: number, userole: string): Promise<Calendrier[]> {
   const role = await this.prismaservice.roles.findUnique({
@@ -530,7 +918,7 @@ async getEvent(idConnecte: number, userole: string): Promise<Calendrier[]> {
             user: true,
           },
         },
-        cars: true,
+        voitures: true,
         moniteur: {
           include: {
             user: true,
@@ -556,7 +944,7 @@ async getEvent(idConnecte: number, userole: string): Promise<Calendrier[]> {
             user: true,
           },
         },
-        cars: true,
+        voitures: true,
         moniteur: {
           include: {
             user: true,
@@ -575,7 +963,7 @@ async getEvent(idConnecte: number, userole: string): Promise<Calendrier[]> {
             user: true,
           },
         },
-        cars: true,
+        voitures: true,
         moniteur: {
           include: {
             user: true,
@@ -691,9 +1079,10 @@ else{
       idMoniteur: 0,
       date_creation: undefined,
       date_modification: undefined,
-      idCategorie: 0,
+ 
       idVoiture: 0,
       idNotification: 0,
+      idContrat:0
     });
   }
 
@@ -740,6 +1129,59 @@ async getAllCalendrierUser(idUser: number): Promise<Calendrier[]> {
         { idUser: Number(idUser) },
         { idMoniteur: Number(idUser) }
       ]
+    }
+  });
+}
+
+
+async scheduleNotifications(event: any) {
+  const { date_debut, firebaseToken, idUser, idEvenement, type } = event;
+  const dateDebut = new Date(date_debut);
+  const currentDate = new Date();
+
+  const intervals = [
+    { label: '24 hours', milliseconds: 24 * 60 * 60 * 1000 },
+    { label: '2 hours', milliseconds: 2 * 60 * 60 * 1000 },
+    { label: '30 minutes', milliseconds: 30 * 60 * 1000 },
+    { label: '1 minute', milliseconds: 1 * 60 * 1000 },
+  ];
+
+  intervals.forEach(async (interval) => {
+    const notificationTime = new Date(dateDebut.getTime() - interval.milliseconds);
+    if (notificationTime > currentDate) {
+      const cronExpression = `${notificationTime.getMinutes()} ${notificationTime.getHours()} ${notificationTime.getDate()} ${notificationTime.getMonth() + 1} *`;
+
+      cron.schedule(cronExpression, async () => {
+        try {
+          // Enregistrer la notification dans la base de données
+          await this.prismaservice.notification.create({
+            data: {
+              lu: false,
+              idEvenement,
+              idUser,
+              description: `Your event of type ${type} starts in ${interval.label}.`,
+              date_creation: new Date(),
+            },
+          });
+
+          if (firebaseToken) {
+            const message = {
+              notification: {
+                title: 'Rappel d\'événement',
+                body: `Your event of type ${type} starts in ${interval.label}.`,
+              },
+              token: firebaseToken,
+            };
+
+            const response = await admin.messaging().send(message);
+            console.log(`Notification envoyée avec succès pour ${interval.label}:`, response);
+          } else {
+            console.log('Aucun token Firebase disponible.');
+          }
+        } catch (error) {
+          console.error(`Erreur lors de l'envoi de la notification pour ${interval.label}:`, error);
+        }
+      });
     }
   });
 }

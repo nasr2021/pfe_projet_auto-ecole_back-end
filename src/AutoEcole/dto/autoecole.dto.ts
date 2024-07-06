@@ -59,5 +59,8 @@ export class AutoecoleDto {
     @ApiProperty()
     @IsOptional()
     temp_historique: Date;
-
+    @ApiProperty()
+    @IsOptional()
+    @IsString()
+    status? : string
 }

@@ -7,7 +7,6 @@ import { AuthService } from './auth/auth.service';
 import { JwtModule } from '@nestjs/jwt';
 import { AuthModule } from './auth/auth.module';
 import { UserModule } from './user/user.module';
-import { CompteModule } from './Compte/compte.module';
 import { PackModule } from './Pack/pack.module';
 import { CalendrierModule } from './Calendrier/calendrier.module';
 import { ServeStaticModule } from '@nestjs/serve-static';
@@ -21,6 +20,7 @@ import { CandidatModule } from './candidat/candidat.module';
 import { DemandModule } from './Demande/demande.module';
 import * as bodyParser from 'body-parser';
 import { MulterModule } from '@nestjs/platform-express';
+import { NotificationModule } from './notification/Notificatio.module';
 
 @Module({
   imports: [
@@ -28,7 +28,7 @@ import { MulterModule } from '@nestjs/platform-express';
     JwtModule,
     AuthModule,
     UserModule,
-    CompteModule,
+
     PackModule,
     CalendrierModule,
     AutoEcoleModule,
@@ -38,16 +38,18 @@ import { MulterModule } from '@nestjs/platform-express';
     GerantModule,
     CandidatModule,
     DemandModule,
+    NotificationModule,
     ServeStaticModule.forRoot({
       rootPath: join(__dirname, '..', 'src', 'assets'),
       serveRoot: '/assets',
     }),   
     MulterModule.register({
-      dest: './uploads', // Dossier de destination des fichiers uploadés
+      dest: './uploads', 
     }), 
   ],
   controllers: [AppController],
   providers: [AppService, AuthService],
+  
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {

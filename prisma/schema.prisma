@@ -8,118 +8,61 @@ datasource db {
 }
 
 model autoecole {
-  id                               Int             @id @default(autoincrement())
-  nom                              String?         @db.VarChar(255)
-  adresse                          String?         @db.VarChar(255)
-  ville                            String?         @db.VarChar(100)
-  code_postal                      String?         @db.VarChar(10)
-  pays                             String?         @db.VarChar(100)
-  telephone                        String?         @db.VarChar(20)
-  email                            String?         @db.VarChar(255)
+  id                               Int          @id @default(autoincrement())
+  nom                              String?      @db.VarChar(255)
+  adresse                          String?      @db.VarChar(255)
+  ville                            String?      @db.VarChar(100)
+  code_postal                      String?      @db.VarChar(10)
+  pays                             String?      @db.VarChar(100)
+  telephone                        String?      @db.VarChar(20)
+  email                            String?      @db.VarChar(255)
   idUser                           Int?
   sms                              Int?
-  temp_historique                  DateTime?       @db.Date
-  experience                       String?         @db.VarChar(254)
-  heureFermeture                   Int?
-  heureOuverture                   DateTime?       @db.DateTime(0)
-  matricule                        String?         @db.VarChar(255)
-  qualification                    String?         @db.VarChar(254)
+  temp_historique                  DateTime?    @db.Date
+  matricule                        String?      @db.VarChar(255)
+  status                           String?      @db.VarChar(254)
   nombre_compte                    Int?
   moniteurs                        Int?
   candidats                        Int?
-  gerantecole                      gerantecole?    @relation(fields: [idUser], references: [idGerant], onDelete: Restrict, onUpdate: Restrict, map: "FK_AUTOECOL_GERER_PAR_GERANTEC")
-  user_autoecole_idUserTouser      user?           @relation("autoecole_idUserTouser", fields: [idUser], references: [idUser], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_new_name")
+  date_creation                    DateTime?    @default(now()) @db.Timestamp(0)
+  total                            Int?
+  gerantecole                      gerantecole? @relation(fields: [idUser], references: [idGerant], onDelete: Restrict, onUpdate: Restrict, map: "FK_AUTOECOL_GERER_PAR_GERANTEC")
+  user_autoecole_idUserTouser      user?        @relation("autoecole_idUserTouser", fields: [idUser], references: [idUser], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_new_name")
   calendrier                       calendrier[]
-  cars                             cars[]
   condidat                         condidat[]
+  contrat                          contrat[]
   demande                          demande[]
   moniteur                         moniteur[]
-  permisfournis                    permisfournis[]
-  tarif                            tarif[]
-  user_autoecoleTouser_idAutoEcole user[]          @relation("autoecoleTouser_idAutoEcole")
-  date_creation     DateTime?    @default(now()) @db.Timestamp(0)
+  user_autoecoleTouser_idAutoEcole user[]       @relation("autoecoleTouser_idAutoEcole")
+  voitures                         voitures[]
+
   @@index([idUser], map: "fk_user_new_name")
 }
 
 model calendrier {
   idEvenement                                          Int            @id @default(autoincrement())
   nom_evenement                                        String         @db.VarChar(255)
-  type                                                 String?        @db.VarChar(255)
   date_debut                                           DateTime       @db.DateTime(0)
   date_fin                                             DateTime       @db.DateTime(0)
   description                                          String?        @db.Text
   idUser                                               Int?
-  idCompteConnecte                                     Int?
   idAutoEcole                                          Int?
   idMoniteur                                           Int?
   date_creation                                        DateTime?      @db.Date
-  date_modification                                    DateTime?      @db.Date
-  idCategorie                                          Int?
   idVoiture                                            Int?
-  idNotification                                       Int?
+  type                                                 String?        @db.VarChar(255)
   autoecole                                            autoecole?     @relation(fields: [idAutoEcole], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_EVENEMEN_ORGANISER_AUTOECOL")
-  category                                             category?      @relation(fields: [idCategorie], references: [idCategory], onDelete: NoAction, onUpdate: NoAction, map: "category_ibfk_1")
   moniteur                                             moniteur?      @relation(fields: [idMoniteur], references: [idMoniteur], onDelete: NoAction, onUpdate: NoAction, map: "fk_calendrier_moniteur")
-  notification_calendrier_idNotificationTonotification notification?  @relation("calendrier_idNotificationTonotification", fields: [idNotification], references: [idNotification], onDelete: Restrict, onUpdate: Restrict, map: "FK_EVENEMEN_LIEE_NOTIFICA")
   condidat                                             condidat?      @relation(fields: [idUser], references: [idCondidat], onDelete: Restrict, onUpdate: Restrict, map: "FK_EVENEMEN_PARTICIPE_CONDIDAT")
   user                                                 user?          @relation(fields: [idUser], references: [idUser], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_id")
-  cars                                                 cars?          @relation(fields: [idVoiture], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_EVENEMEN_PARTICIPA_VOITURE")
+  voitures                                             voitures?      @relation(fields: [idVoiture], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_EVENEMEN_PARTICIPA_VOITURE")
+  demande                                              demande[]
   notification                                         notification[]
 
   @@index([idAutoEcole], map: "fk_calendrier_autoecole")
   @@index([idVoiture], map: "fk_cars_event")
   @@index([idUser], map: "fk_user_id")
-  @@index([idCategorie], map: "idCategory")
-  @@index([idNotification], map: "FK_notification")
   @@index([idMoniteur], map: "fk_calendrier_moniteur")
-}
-
-model cars {
-  id                     Int          @id @default(autoincrement())
-  marque                 String?      @db.VarChar(255)
-  modele                 String?      @db.VarChar(255)
-  annee                  Int?
-  couleur                String?      @db.VarChar(100)
-  idUser                 Int?
-  image                 String?        @db.VarChar(255)
-  idAutoEcole            Int?
-  statut                 String?      @db.VarChar(255)
-  Ger_idUser             Int?
-  gerantecole            gerantecole? @relation(fields: [Ger_idUser], references: [idGerant], onDelete: Restrict, onUpdate: Restrict, map: "FK_VOITURE_ETRE_COND_GERANTEC")
-  autoecole              autoecole?   @relation(fields: [idAutoEcole], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_VOITURE_UTILISER_AUTOECOL")
-  moniteur               moniteur?    @relation(fields: [idUser], references: [idMoniteur], onDelete: Restrict, onUpdate: Restrict, map: "FK_VOITURE_ETRE_COND_MONITEUR")
-  user_cars_idUserTouser user?        @relation("cars_idUserTouser", fields: [idUser], references: [idUser], onDelete: NoAction, onUpdate: NoAction, map: "cars_ibfk_1")
-  calendrier             calendrier[]
-  date_creation     DateTime?    @default(now()) @db.Timestamp(0)
-  @@index([idAutoEcole], map: "fk_idAutoEcole_cars")
-  @@index([idUser], map: "idUser")
-  @@index([Ger_idUser], map: "FK_Ger_idUser")
-}
-
-model category {
-  idCategory    Int          @id @default(autoincrement())
-  nom_categorie String       @db.VarChar(45)
-  calendrier    calendrier[]
-}
-
-model compte {
-  idCompte         Int      @id @default(autoincrement())
-  email            String   @db.VarChar(255)
-  username         String   @unique(map: "unique_username") @db.VarChar(255)
-  password         String   @db.VarChar(255)
-  idRole           Int?
-  idUser           Int?
-  hash             String
-  hashedRt         String?
-  account          Boolean?
-  nom              String?
-  number1          String?
-  number2          String?
-  prenom           String?
-  idCompteConnecte Int?
-
-  @@index([idRole], map: "fk_role_compte")
-  @@index([idUser], map: "fk_user_compte_new")
 }
 
 model demande {
@@ -130,16 +73,20 @@ model demande {
   idForfait      Int?
   statut         String?       @db.VarChar(255)
   idAutoecole    Int?
-  idNotification Int?
+
+  idEvenement    Int?
+  date_debut     DateTime?
+  date_fin       DateTime?
   autoecole      autoecole?    @relation(fields: [idAutoecole], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_DEMANDE_PASSER_AUTOECOL")
+  evenement      calendrier?   @relation(fields: [idEvenement], references: [idEvenement], onDelete: Restrict, onUpdate: Restrict, map: "FK_DEMANDE_CONCERNER_EVENEMENT")
   forfait        forfait?      @relation(fields: [idForfait], references: [idForfait], onDelete: Restrict, onUpdate: Restrict, map: "FK_DEMANDE_CONCERNER_FORFAIT")
-  notification   notification? @relation(fields: [idNotification], references: [idNotification], onDelete: Restrict, onUpdate: Restrict, map: "FK_DEMANDE_LIEE_NOTIFICA")
   user           user?         @relation(fields: [idUser], references: [idUser], onDelete: Restrict, onUpdate: Restrict, map: "FK_DEMANDE_ENVOYER_USER")
 
   @@index([idForfait], map: "idPack")
   @@index([idUser], map: "idUser")
   @@index([idAutoecole], map: "fk_demande_autoecole")
-  @@index([idNotification], map: "fk_demande_notification")
+
+  @@index([idEvenement], map: "FK_DEMANDE_CONCERNER_EVENEMENT")
 }
 
 model forfait {
@@ -149,9 +96,7 @@ model forfait {
   historique        Boolean?
   prix              Decimal      @db.Decimal(10, 2)
   date_creation     DateTime?    @default(now()) @db.Timestamp(0)
-  idCompteConnecte  Int?
   idAutoEcole       Int?
-  date_modification DateTime?    @db.Date
   nom_forfait       String?      @db.VarChar(255)
   idGerant          Int?
   gerantecole       gerantecole? @relation(fields: [idGerant], references: [idGerant], onDelete: NoAction, onUpdate: NoAction, map: "fk_forfait_gerant_ecole")
@@ -165,35 +110,20 @@ model notification {
   idNotification                                     Int          @id @default(autoincrement())
   lu                                                 Boolean?
   description                                        String?      @db.Text
-  date_creation                                      DateTime?    @default(now()) @db.DateTime(0)
+  date_creation                                       DateTime?      @default(now()) @db.Timestamp(0)
   idEvenement                                        Int?
   idUser                                             Int?
   calendrier                                         calendrier?  @relation(fields: [idEvenement], references: [idEvenement], onDelete: NoAction, onUpdate: NoAction, map: "notification_ibfk_1")
   user                                               user?        @relation(fields: [idUser], references: [idUser], onDelete: NoAction, onUpdate: NoAction, map: "notification_ibfk_2")
-  calendrier_calendrier_idNotificationTonotification calendrier[] @relation("calendrier_idNotificationTonotification")
-  demande                                            demande[]
-
+  
   @@index([idEvenement], map: "idEvenement")
   @@index([idUser], map: "idUser")
-}
-
-model packcategory {
-  idPackCategory Int     @id @default(autoincrement())
-  nom_forfait    String? @db.VarChar(255)
 }
 
 model roles {
   idRole   Int    @id @default(autoincrement())
   nom_role String @db.VarChar(255)
   user     user[]
-}
-
-model tarif {
-  id           Int        @id @default(autoincrement())
-  id_autoecole Int?
-  autoecole    autoecole? @relation(fields: [id_autoecole], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_autoecole_tarif")
-
-  @@index([id_autoecole], map: "fk_autoecole_tarif")
 }
 
 model user {
@@ -205,98 +135,106 @@ model user {
   numero_telephone2                     String?        @db.VarChar(15)
   idRole                                Int?
   description                           String?        @db.Text
-  qualification                         String?        @db.VarChar(255)
-  experience                            Int?
   adresse                               String?        @db.VarChar(255)
-  services_offerts                      String?        @db.Text
-  date_naissance                        DateTime?      @db.Date
   cin                                   String?        @db.VarChar(20)
-  numero_permis                         String?        @db.VarChar(20)
-  date_prise_permis                     DateTime?      @db.Date
-  type_permis_pris                      String?        @db.VarChar(20)
-  type_permis_souhaite                  String?        @db.VarChar(20)
   nombre_fois_code                      Int?
   nombre_fois_conduit                   Int?
-  nombre_heures_code                    Int?
-  nombre_heures_conduit                 Int?
-  idCompteConnecte                      Int?
   password                              String?        @db.VarChar(255)
-  username                              String?        @db.VarChar(255)
+  username                              String?        @unique @db.VarChar(255)
   hash                                  String?        @db.VarChar(255)
   hashedRt                              String?        @db.VarChar(255)
   idAutoEcole                           Int?
   avatar                                String?        @db.VarChar(255)
-  otp                                   String?        @db.VarChar(255)
-  compte                                Boolean?
   emploi                                String?        @db.VarChar(255)
   genre                                 String?        @db.VarChar(255)
+  date_creation                         DateTime?      @default(now()) @db.Timestamp(0)
+  otp                                   String?        @db.VarChar(255)
+  connecte                              Int?
+  firebaseToken                         String?
   autoecole_autoecoleTouser_idAutoEcole autoecole?     @relation("autoecoleTouser_idAutoEcole", fields: [idAutoEcole], references: [id], onDelete: NoAction, onUpdate: NoAction, map: "fk_user_autoecole")
   roles                                 roles?         @relation(fields: [idRole], references: [idRole], onDelete: Restrict, onUpdate: Restrict, map: "FK_USER_ROLE_ROLES")
   autoecole_autoecole_idUserTouser      autoecole[]    @relation("autoecole_idUserTouser")
   calendrier                            calendrier[]
-  cars_cars_idUserTouser                cars[]         @relation("cars_idUserTouser")
   condidat                              condidat?
   demande                               demande[]
   moniteur                              moniteur?
   notification                          notification[]
   tarification                          tarification[]
-  date_creation                         DateTime?    @default(now()) @db.Timestamp(0)
   @@index([idAutoEcole], map: "fk_user_autoecole")
   @@index([idRole], map: "idRole")
 }
+model condidat {
+  idCondidat                             Int          @id
+  idAutoecole                            Int
 
-model moniteur {
-  idMoniteur  Int          @id
-  idAutoecole Int
-  statut      String?      @db.VarChar(255)
-  autoecole   autoecole    @relation(fields: [idAutoecole], references: [id], onUpdate: Restrict, map: "FK_MONITEUR_EMPLOYEME_AUTOECOL")
-  user        user         @relation(fields: [idMoniteur], references: [idUser], onUpdate: Restrict, map: "FK_MONITEUR_GENERALIS_USER")
-  calendrier  calendrier[]
-  cars        cars[]
-  date_creation     DateTime?    @default(now()) @db.Timestamp(0)
+  date_creation                          DateTime?    @default(now()) @db.Timestamp(0)
+  nombre_heur_code                       Int?
+  nombre_heur_conduit                    Int?
+  total_prix_code                        Int?
+  total_prix_conduit                     Int?
+  autoecole                              autoecole    @relation(fields: [idAutoecole], references: [id], onUpdate: Restrict, map: "FK_CONDIDAT_INSCRIPTI_AUTOECOL")
+  user                                   user         @relation(fields: [idCondidat], references: [idUser], onUpdate: Restrict, map: "FK_CONDIDAT_GENERALIS_USER")
+ calendrier                             calendrier[]
+  contrats                               contrat[] 
+
+
   @@index([idAutoecole], map: "idAutoecole")
 }
 
-model condidat {
-  idCondidat          Int          @id
-  idAutoecole         Int
-  nombre_fois_conduit Int?
-  nombre_fois_code    Int?
-  autoecole           autoecole    @relation(fields: [idAutoecole], references: [id], onUpdate: Restrict, map: "FK_CONDIDAT_INSCRIPTI_AUTOECOL")
-  user                user         @relation(fields: [idCondidat], references: [idUser], onUpdate: Restrict, map: "FK_CONDIDAT_GENERALIS_USER")
-  calendrier          calendrier[]
-  permi               permi[]
-  date_creation     DateTime?    @default(now()) @db.Timestamp(0)
+
+model contrat {
+  idContrat     Int          @id @default(autoincrement())
+  idAutoEcole   Int
+  idPermi       Int
+  statut        String       @db.VarChar(254)
+  date_creation DateTime     @default(now()) @db.Timestamp(0)
+  idCondidat    Int
+  autoecole     autoecole    @relation(fields: [idAutoEcole], references: [id], onUpdate: Restrict, map: "FK_CONTRAT_AUTOECOLE")
+  condidat      condidat     @relation(fields: [idCondidat], references: [idCondidat], onUpdate: Restrict, map:"FK_contrat_condidat")
+  permi         permi        @relation(fields: [idPermi], references: [idPermi], onUpdate: Restrict, map: "FK_CONTRAT_PERMI")
+  paiement      paiement[]
+
+  @@index([idCondidat], map: "FK_contrat_condidat")
+  @@index([idAutoEcole], map: "FK_CONTRAT_AUTOECOLE")
+  @@index([idPermi], map: "FK_CONTRAT_PERMI")
+}
+
+model moniteur {
+  idMoniteur    Int          @id
+  idAutoecole   Int
+  date_creation DateTime?    @default(now()) @db.Timestamp(0)
+  autoecole     autoecole    @relation(fields: [idAutoecole], references: [id], onUpdate: Restrict, map: "FK_MONITEUR_EMPLOYEME_AUTOECOL")
+  user          user         @relation(fields: [idMoniteur], references: [idUser], onUpdate: Restrict, map: "FK_MONITEUR_GENERALIS_USER")
+  calendrier    calendrier[]
   @@index([idAutoecole], map: "idAutoecole")
 }
 
 model gerantecole {
-  idGerant     Int            @id
-  autoecole    autoecole[]
-  cars         cars[]
-  forfait      forfait[]
-  tarification tarification[]
-    date_creation     DateTime?    @default(now()) @db.Timestamp(0)
+  idGerant      Int            @id
+  date_creation DateTime?      @default(now()) @db.Timestamp(0)
+  autoecole     autoecole[]
+  forfait       forfait[]
+ 
+}
+
+
+
+model paiement {
+  id                                     Int       @id @default(autoincrement())
+  idContrat                              Int?
+  incrementType                          String?   @db.VarChar(255)
+  incrementValue                         Int?
+  date_creation                          DateTime? @default(now()) @db.Timestamp(0)
+  contrat                                contrat?  @relation(fields: [idContrat], references: [idContrat], onDelete: NoAction, onUpdate: NoAction, map: "FK_Paiement_ContractIncrementHistory")
+
+  @@index([idContrat], map: "FK_Paiement_ContractIncrementHistory")
 }
 
 model permi {
-  idPermi       Int             @id
-  idUser        Int?
-  type          String?         @db.VarChar(254)
-  condidat      condidat?       @relation(fields: [idUser], references: [idCondidat], onDelete: Restrict, onUpdate: Restrict, map: "FK_PERMI_PRISE_CONDIDAT")
-  permisfournis permisfournis[]
+  idPermi  Int       @id @default(autoincrement())
+  type     String?   @db.VarChar(254)
+ contrat  contrat[]
 
-  @@index([idUser], map: "FK_PERMI_PRISE_CONDIDAT")
-}
-
-model permisfournis {
-  idAutoecole Int
-  idPermi     Int
-  autoecole   autoecole @relation(fields: [idAutoecole], references: [id], onUpdate: Restrict, map: "FK_PERMISFO_PERMISFOU_AUTOECOL")
-  permi       permi     @relation(fields: [idPermi], references: [idPermi], onUpdate: Restrict, map: "FK_PERMISFO_PERMISFOU_PERMI")
-
-  @@id([idAutoecole, idPermi])
-  @@index([idPermi], map: "FK_PERMISFO_PERMISFOU_PERMI")
 }
 
 model service {
@@ -308,13 +246,30 @@ model service {
 model tarification {
   idService   Int
   idUser      Int
-  Ger_idUser  Int?
-  tarif       Int?
-  gerantecole gerantecole? @relation(fields: [Ger_idUser], references: [idGerant], onDelete: NoAction, onUpdate: NoAction, map: "FK_TARIFICATION_GERANT")
+  tarif       Decimal?
   service     service      @relation(fields: [idService], references: [idService], onDelete: NoAction, onUpdate: NoAction, map: "FK_TARIFICATION_SERVICE")
   user        user         @relation(fields: [idUser], references: [idUser], onDelete: NoAction, onUpdate: NoAction, map: "FK_TARIFICATION_USER")
 
   @@id([idService, idUser])
-  @@index([Ger_idUser], map: "FK_TARIFICATION_GERANT")
+ 
   @@index([idUser], map: "FK_TARIFICATION_USER")
+}
+
+model voitures {
+  id            Int          @id @default(autoincrement())
+  marque        String?      @db.VarChar(255)
+  modele        String?      @db.VarChar(255)
+  annee         Int?
+  couleur       String?      @db.VarChar(100)
+  idAutoEcole   Int?
+  statut        String?      @db.VarChar(255)
+  date_creation DateTime?    @default(now()) @db.Timestamp(0)
+  image         String?      @db.VarChar(255)
+  description   String?      @db.Text
+  matricule     String?      @db.VarChar(255)
+  autoecole     autoecole?   @relation(fields: [idAutoEcole], references: [id], onDelete: Restrict, onUpdate: Restrict, map: "FK_VOITURE_UTILISER_AUTOECOL")
+  calendrier    calendrier[]
+
+  @@index([idAutoEcole], map: "fk_idAutoEcole_cars")
+
 }

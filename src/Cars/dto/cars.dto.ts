@@ -37,4 +37,10 @@ export class CarsDto {
     @ApiProperty()
     @IsOptional()
     image?:string;
+    @ApiProperty()
+    @IsOptional()
+    matricule?:string;
+    @ApiProperty()
+    @IsOptional()
+    description?:string;
 }

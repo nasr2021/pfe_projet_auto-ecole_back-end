@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpException, HttpStatus, Post, Render, Req, UseGuards } from '@nestjs/common';
 import { AuthService } from './auth.service';
-import { AuthDto } from './dto';
+import { AuthDto, UpdatePasswordWithOTPDto } from './dto';
 import { Tokens } from './types';
 import { AuthGuard } from '@nestjs/passport';
 import { Request } from 'express';
@@ -10,7 +10,8 @@ import { ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { NoAuthGuard } from './NoAuthGuard';
 @Controller('auth')
 export class AuthController {
-    constructor(private authservice:AuthService){}
+    constructor(private authservice:AuthService
+    ){}
     
     @Post('signup')
     @HttpCode(HttpStatus.CREATED)
@@ -28,6 +29,7 @@ export class AuthController {
     async login(@Body() dto: AuthDto): Promise<{ tokens: Tokens, role: string }> {
         try {
             const tokens = await this.authservice.login(dto);
+            console.log('...',tokens)
             return tokens;
         } catch (error) {
             console.log('err',error)
@@ -35,7 +37,7 @@ export class AuthController {
         }
     }
 
-
+    
     @UseGuards(AuthMiddleware)
     @UseGuards(AuthGuard('jwt'))
     @Post('logout')
@@ -77,5 +79,16 @@ export class AuthController {
         const roleId = roleIdString ? parseInt(roleIdString, 10) : null; 
         return this.authservice.getRoleNameByRoleId(roleId);
     }
-    
+    @UseGuards(AuthGuard('jwt'))
+    @UseGuards(AuthMiddleware)
+    @Post('update-password-with-otp')
+    async updatePasswordWithOTP(@Body() dto: UpdatePasswordWithOTPDto): Promise<{ message: string }> {
+      try {
+        console.log('dto',dto)
+        await this.authservice.updatePasswordWithOTP(dto);
+        return { message: 'Password updated successfully with OTP.' };
+      } catch (error) {
+        throw new HttpException('Failed to update password with OTP.', HttpStatus.BAD_REQUEST);
+      }
+    }   
 }

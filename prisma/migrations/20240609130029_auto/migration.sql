@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE `permi` MODIFY `idPermi` INTEGER NOT NULL AUTO_INCREMENT;

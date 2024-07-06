@@ -10,5 +10,5 @@ export class Candidat implements Prisma.condidatUncheckedCreateInput {
     autoecole: Prisma.autoecoleCreateNestedOneWithoutCondidatInput;
     user: Prisma.userCreateNestedOneWithoutCondidatInput;
     calendrier?: Prisma.calendrierCreateNestedManyWithoutCondidatInput;
-    permi?: Prisma.permiCreateNestedManyWithoutCondidatInput;
+   
 }

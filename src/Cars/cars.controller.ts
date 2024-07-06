@@ -1,6 +1,6 @@
 import { Controller, Get, Param, Post, Body, Put, Delete, Req, UseGuards, UnauthorizedException, NotFoundException, BadRequestException, UploadedFile } from '@nestjs/common';
 import { CarsService } from './cars.service';
-import { Cars } from './cars.model';
+import { Voitures } from './cars.model';
 import { AuthMiddleware, AuthenticatedRequest } from 'src/auth/AuthMiddleware';
 import { AuthGuard } from '@nestjs/passport';
 import { CarsDto } from './dto';
@@ -32,7 +32,7 @@ export class CarsController {
   @UseGuards(AuthMiddleware)
   @UseGuards(AuthGuard('jwt'))
   @Get('car/:id')
-  async getCarById( @Param('id') carId: number,): Promise<Cars> {
+  async getCarById( @Param('id') carId: number,): Promise<Voitures> {
     const car = await this.carsService.getCarById(carId);
     if (!car) {
       throw new NotFoundException(`Car with ID ${carId} not found`);
@@ -43,7 +43,7 @@ export class CarsController {
   @UseGuards(AuthMiddleware)
   @UseGuards(AuthGuard('jwt'))
   @Post()
-  async createCar(@Body() carDto: CarsDto, @Req() req: Request & { user: { sub: number ,idRole:string} }): Promise<Cars> {
+  async createCar(@Body() carDto: CarsDto, @Req() req: Request & { user: { sub: number ,idRole:string} }): Promise<Voitures> {
     console.log('req.user',req.user)  
     const sub = req.user.sub;
       const role = req.user.idRole;
@@ -62,7 +62,7 @@ export class CarsController {
   async assignCarToMoniteur(
       @Param('carId') carId: number,
       @Param('moniteurId') moniteurId: number
-  ): Promise<Cars> {
+  ): Promise<Voitures> {
       try {
           const assignedCar = await this.carsService.assignCarToMoniteur(carId, moniteurId);
          console.log('assignedCar',assignedCar)
@@ -75,7 +75,7 @@ export class CarsController {
   @UseGuards(AuthGuard('jwt'),RolesGuard)
   @Roles('ecole')
   @Put(':id')
-  async updateCar(@Param('id') carId: number, @Body() carDto: CarsDto): Promise<Cars> {
+  async updateCar(@Param('id') carId: number, @Body() carDto: CarsDto): Promise<Voitures> {
       try {
         console.log('avatar', carDto.image)
           return await this.carsService.updateCar(carId, carDto);
@@ -92,19 +92,19 @@ export class CarsController {
   }
   @UseGuards(AuthGuard('jwt'))
   @Get('autoecole')
-  async getAllCarsByUserId(@Req() req: Request & { user: { sub: number} }): Promise<Cars[]> {
+  async getAllCarsByUserId(@Req() req: Request & { user: { sub: number} }): Promise<Voitures[]> {
     console.log('req.user',req.user)  
     const sub = req.user.sub;
     return this.carsService.getAllCarsByUserId(sub);
   }
   @Get()
-  async getAllCars(): Promise<Cars[]> {
+  async getAllCars(): Promise<Voitures[]> {
       return this.carsService.getAllCars();
   }
   @UseGuards(AuthGuard('jwt'))
   @UseGuards(AuthMiddleware)
   @Get('car')
-  async getVoiture(@Req() req: Request & { user: { sub: number } }): Promise<Cars[]> {
+  async getVoiture(@Req() req: Request & { user: { sub: number } }): Promise<Voitures[]> {
     console.log('req.user',req.user)  
     const sub = req.user.sub;
     return this.carsService.getVoiture(Number(sub));

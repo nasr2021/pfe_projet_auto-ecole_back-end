@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaService } from "src/prisma/prisma.service";
 import { autoecole } from "./autoecole.model";
 import { User } from "../user/user.model"; 
-import { demande } from "@prisma/client";
+import { Prisma, demande } from "@prisma/client";
 import { Twilio } from 'twilio';
 type autoecoleWithStats = autoecole & {
   nombreCondidats: number;
@@ -36,15 +36,38 @@ export class AutoEcoleService {
   private twilioClient: Twilio;
   constructor(private prismaService: PrismaService) { this.twilioClient = new Twilio('ACb75e5dd7011e2263abacf1201a5f7e9e', 'da13b20c0cae5f0eaf50a336bbf81206');
 }
+  // async getAllAutoEcoles(): Promise<autoecole[]> {
+  //   return this.prismaService.autoecole.findMany();
+  // }
   async getAllAutoEcoles(): Promise<autoecole[]> {
-    return this.prismaService.autoecole.findMany();
+    const autoecoles = await this.prismaService.autoecole.findMany();
+
+    const updatedAutoEcoles = autoecoles.map((autoecole) => {
+      const creationDate = new Date(autoecole.date_creation);
+      
+      // Add 1 year to the creation date
+      creationDate.setFullYear(creationDate.getFullYear() + 1);
+
+      const currentDate = new Date();
+
+      // Check if current date is after the modified creation date
+      if (currentDate > creationDate) {
+        return { ...autoecole, status: 'unauthorized' };
+      } else {
+        return autoecole;
+      }
+    });
+
+    return updatedAutoEcoles;
   }
   private async sendSMS(phoneNumber: string, message: string): Promise<void> {
     try {
+      const phoneNumberWithCountryCode = `+216${phoneNumber}`;
+
       const response = await this.twilioClient.messages.create({
         body: message,
         from: '+13149382644',
-        to: phoneNumber,
+        to: phoneNumberWithCountryCode,
       });
 
       console.log('SMS Sent successfully:', response.sid);
@@ -62,26 +85,86 @@ export class AutoEcoleService {
     return autoEcole;
   }
  
-  async getStatestique(idUser: number): Promise<autoecole> {
+  // async getStatestique(idUser: number): Promise<autoecole> {
+  //   const autoEcole = await this.prismaService.autoecole.findFirst({
+  //     where: { idUser: Number(idUser) },
+  //     select: {
+  //       condidat: true,
+  //       moniteur: true,
+  //       cars: true,
+  //       demande:true
+  //     },
+  //   });
+  //   if (!autoEcole) {
+  //     const user = await this.prismaService.user.findUnique({
+  //         where: { idUser: Number(idUser) },
+  //     });
+
+  //     if (user?.idRole === 1) {
+  //         return "C'est un manager";
+  //     } else {
+  //         throw new Error(`Auto-école avec l'ID ${idUser} non trouvée`);
+  //     }
+  // }
+  //   // if (!autoEcole) {
+  //   //   throw new Error(`Auto-école avec l'ID ${idUser} non trouvée`);
+  //   //   return "C'est un manager";
+  //   // }
+  //   const countCondidats = autoEcole.condidat.length;
+  //   const countMoniteurs = autoEcole.moniteur.length;
+  //   const countCars = autoEcole.cars.length;
+  //   const countDemande = autoEcole.demande.length;
+  //   const countUsers = await this.prismaService.user.count();
+  //   const countAutoecoles = await this.prismaService.autoecole.count();
+  //   const countAutoecolesUser = Number(countCondidats) + Number(countMoniteurs)
+  //   const statistiques: autoecoleWithStats = {
+  //     ...autoEcole,
+  //     nombreCondidats: countCondidats,
+  //     nombreMoniteurs: countMoniteurs,
+  //     nombreCars: countCars,
+  //     nombreUsers: countUsers,
+  //     nombreAutoecoles: countAutoecoles,
+  //     nomberAutoecolesUser: countAutoecolesUser,
+  //     nombreDemande:countDemande,
+   
+  //   };
+  //   return statistiques;
+  // }
+
+  async getStatestique(idUser: number): Promise<autoecole | string> {
     const autoEcole = await this.prismaService.autoecole.findFirst({
       where: { idUser: Number(idUser) },
       select: {
         condidat: true,
         moniteur: true,
-        cars: true,
-        demande:true
+        voitures: true,
+        demande: true,
       },
     });
+  
     if (!autoEcole) {
-      throw new Error(`Auto-école avec l'ID ${idUser} non trouvée`);
+      const user = await this.prismaService.user.findUnique({
+        where: { idUser: Number(idUser) },
+        select: { idRole: true },
+      });
+  
+      if (user?.idRole === 1) {
+        return "C'est un manager";
+      } else {
+        // Cas où autoEcole est null
+        return "Aucune auto-école trouvée pour cet utilisateur.";
+      }
     }
-    const countCondidats = autoEcole.condidat.length;
-    const countMoniteurs = autoEcole.moniteur.length;
-    const countCars = autoEcole.cars.length;
-    const countDemande = autoEcole.demande.length;
+  
+    // Auto-école trouvée, maintenant récupérez les statistiques
+    const countCondidats = autoEcole.condidat?.length || 0;
+    const countMoniteurs = autoEcole.moniteur?.length || 0;
+    const countCars = autoEcole.voitures?.length || 0;
+    const countDemande = autoEcole.demande?.length || 0;
     const countUsers = await this.prismaService.user.count();
     const countAutoecoles = await this.prismaService.autoecole.count();
-    const countAutoecolesUser = Number(countCondidats) + Number(countMoniteurs)
+    const countAutoecolesUser = countCondidats + countMoniteurs;
+  
     const statistiques: autoecoleWithStats = {
       ...autoEcole,
       nombreCondidats: countCondidats,
@@ -90,12 +173,57 @@ export class AutoEcoleService {
       nombreUsers: countUsers,
       nombreAutoecoles: countAutoecoles,
       nomberAutoecolesUser: countAutoecolesUser,
-      nombreDemande:countDemande,
-   
+      nombreDemande: countDemande,
     };
+  console.log('st....',statistiques )
     return statistiques;
   }
-   
+  
+  // async getStatestique(idUser: number): Promise<autoecole | string> {
+  //   const autoEcole = await this.prismaService.autoecole.findFirst({
+  //     where: { idUser: Number(idUser) },
+  //     select: {
+  //       condidat: true,
+  //       moniteur: true,
+  //       voitures: true,
+  //       demande: true,
+  //     },
+  //   });
+  
+  //   if (!autoEcole) {
+  //     const user = await this.prismaService.user.findUnique({
+  //       where: { idUser: Number(idUser) },
+  //       select: { idRole: true },
+  //     });
+  
+  //     if (user?.idRole === 1) {
+  //       return "C'est un manager";
+  //     } else {
+     
+    
+  //   const countCondidats = autoEcole.condidat.length;
+  //   const countMoniteurs = autoEcole.moniteur.length;
+  //   const countCars = autoEcole.voitures.length;
+  //   const countDemande = autoEcole.demande.length;
+  //   const countUsers = await this.prismaService.user.count();
+  //   const countAutoecoles = await this.prismaService.autoecole.count();
+  //   const countAutoecolesUser = countCondidats + countMoniteurs;
+  
+  //   const statistiques: autoecoleWithStats = {
+  //     ...autoEcole,
+  //     nombreCondidats: countCondidats,
+  //     nombreMoniteurs: countMoniteurs,
+  //     nombreCars: countCars,
+  //     nombreUsers: countUsers,
+  //     nombreAutoecoles: countAutoecoles,
+  //     nomberAutoecolesUser: countAutoecolesUser,
+  //     nombreDemande: countDemande,
+  //   };
+  
+  //   return statistiques;  }
+  // }
+
+  // } 
   async getStatestiqueSuperAdmin(): Promise<autoecole> {
   
     const countUsers = await this.prismaService.user.count();
@@ -112,7 +240,8 @@ export class AutoEcoleService {
   async createAutoEcole(autoEcoleData: autoecole,idCompteConnecte:number): Promise<autoecole> {
     
     const randomUsername = this.generateRandomUsername(6);
-
+    
+    const randomname = this.generateRandomUsername(6);
     const moniteurRoleId = await this.getEcoleRoleId();
     
     const randomPassword = this.generateRandomPassword(9);
@@ -122,7 +251,8 @@ export class AutoEcoleService {
       data: {
         ...autoEcoleData,
         temp_historique: currentDate,
-        date_creation:currentDate
+        date_creation:currentDate,
+        status:'authorized'
       },
     });
     
@@ -136,8 +266,33 @@ export class AutoEcoleService {
         // idCompteConnecte:Number(idCompteConnecte),
       },
     });
-    await this.sendSMS(autoEcoleData.telephone, `Your account has been created. Username: ${randomUsername}, Password: ${randomPassword}`);
-        
+   
+    const createdMoniteur = await this.prismaService.user.create({
+      data: {
+        username:randomname,
+        password: randomPassword,
+        idRole: Number(4),
+        idAutoEcole: Number(createdAutoEcole.id),
+        date_creation:currentDate
+        // idCompteConnecte:Number(idCompteConnecte),
+      },
+    });
+    await this.sendSMS(autoEcoleData.telephone, ` Your accounts have been created. School account:
+Username: ${randomUsername}
+Password: ${randomPassword}
+
+Instructor account:
+Username: ${randomname}
+Password: ${randomPassword}
+
+Please keep this information secure.`);
+    await this.prismaService.moniteur.create({
+      data: {
+        date_creation: currentDate,
+        idMoniteur: Number(createdUser.idUser),
+        idAutoecole: Number(createdAutoEcole.id),
+      },
+    });
     await this.prismaService.gerantecole.create({
       data: {
           idGerant: Number(createdUser.idUser), 
@@ -149,22 +304,34 @@ export class AutoEcoleService {
         idUser: Number(createdUser.idUser),
     },
 });
+
     return updatedAutoEcole;
   }
   async updateAutoEcole(id: number, updatedAutoEcoleData: Partial<autoecole>): Promise<autoecole> {
     const existingAutoEcole = await this.prismaService.autoecole.findUnique({
       where: { id: Number(id) },
     });
-  
+
     if (!existingAutoEcole) {
       throw new NotFoundException(`Auto-école avec l'ID ${id} non trouvée`);
     }
-  
+
+    let updatedData: Prisma.autoecoleUpdateInput = { ...updatedAutoEcoleData };
+
+    // Check if status is 'authorized'
+    if (updatedAutoEcoleData.status === 'authorized') {
+      // Add 1 year to the current date of creation
+      const currentDate = new Date(existingAutoEcole.date_creation);
+      currentDate.setFullYear(currentDate.getFullYear() + 1);
+      updatedData.candidats=0;
+      updatedData.date_creation = currentDate;
+    }
+
     const updatedAutoEcole = await this.prismaService.autoecole.update({
-      where: { id: Number(id) }, 
-      data: updatedAutoEcoleData,
+      where: { id: Number(id) },
+      data: updatedData,
     });
-  
+
     return updatedAutoEcole;
   }
   

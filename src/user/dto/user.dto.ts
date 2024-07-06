@@ -43,7 +43,7 @@ export class UserDto {
 
     @ApiProperty()
     @IsOptional()
-    idRole: number;
+    idRole?: number;
 
     @ApiProperty()
     @IsOptional()

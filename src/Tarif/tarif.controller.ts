@@ -7,6 +7,7 @@ import { TarifDto } from "./dto";
 import { TarifService } from "./tarif.service";
 import { service, tarification } from "@prisma/client";
 import { ServiceDto } from "src/service/dto";
+import { Decimal } from "@prisma/client/runtime";
 // import { tarification } from "@prisma/client";
 
 @Controller('api/tarif')
@@ -18,7 +19,7 @@ export class TarifController {
     @Post()
     async addTarification(
         @Body('nom') nom: string,
-        @Body('tarif') tarif: number,
+        @Body('tarif') tarif: any,
         @Req() req: Request & { user: { sub: number,idRole } }
     ): Promise<tarification> {
         const userId = req.user.sub;
@@ -27,7 +28,7 @@ export class TarifController {
             throw new UnauthorizedException('User ID not found in request');
         }
     
-        return this.tarifService.addTarification(Number(userId), nom, Number(tarif),role);
+        return this.tarifService.addTarification(Number(userId), nom, tarif,role);
     }
     
     @UseGuards(AuthMiddleware)

@@ -19,16 +19,17 @@ export class AutoEcoleController {
     
       console.log('req.user', req.user);
       const idCompteConnecte = req.user?.idUser;
-      return this.autoecoleService.createAutoEcole(autoEcoleData,idCompteConnecte);
+     const addecole= this.autoecoleService.createAutoEcole(autoEcoleData,idCompteConnecte);
+   console.log('addecole', addecole);
+   return addecole;
     }
     @UseGuards(AuthMiddleware)
     @UseGuards(AuthGuard('jwt'))
     @Get('statistiques')
-  async getStatestique( @Req() req: Request & { user: { sub: number}}): Promise<autoecole> {   
-    const idCompteConnecte = req.user.sub;
-     return this.autoecoleService.getStatestique(Number(idCompteConnecte));
-
-  }
+    async getStatestique(@Req() req: Request & { user: { sub: number } }): Promise<autoecole | string> {
+      const idCompteConnecte = req.user.sub;
+      return this.autoecoleService.getStatestique(Number(idCompteConnecte));
+    }
   @UseGuards(AuthMiddleware)
   @UseGuards(AuthGuard('jwt'))
   @Get('StatestiqueSuperAdmin')
@@ -52,7 +53,9 @@ async getUserStatestique(): Promise<userWithStats[]> {
       @Param('id') id: number,
       @Body() updatedAutoEcoleData: Partial<AutoecoleDto>,
     ): Promise<autoecole> {
-      return this.autoecoleService.updateAutoEcole(id, updatedAutoEcoleData);
+      const ecoleUpdated= this.autoecoleService.updateAutoEcole(id, updatedAutoEcoleData);
+    console.log('ecoleUpdated', ecoleUpdated);
+    return ecoleUpdated;
     }
     @UseGuards(AuthMiddleware)
     @UseGuards(AuthGuard('jwt'),RolesGuard)
@@ -66,7 +69,9 @@ async getUserStatestique(): Promise<userWithStats[]> {
     @UseGuards(AuthGuard('jwt'))
     @Get()
     async getAllAutoEcoles(): Promise<autoecole[]> {
-      return this.autoecoleService.getAllAutoEcoles();
+      const ecole= this.autoecoleService.getAllAutoEcoles();
+      console.log('ecole', ecole)
+      return ecole;
     }
     @UseGuards(AuthMiddleware)
     @UseGuards(AuthGuard('jwt'))

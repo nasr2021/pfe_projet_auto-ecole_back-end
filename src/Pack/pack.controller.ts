@@ -1,4 +1,4 @@
-import { Body, Controller, Delete, Get, NotFoundException, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
+import { Body, Controller, Delete, Get, HttpException, HttpStatus, NotFoundException, Param, Post, Put, Req, Res, UseGuards } from "@nestjs/common";
 import { AuthGuard } from "@nestjs/passport";
 import { AuthMiddleware, AuthenticatedRequest } from "src/auth/AuthMiddleware";
 import { PackService } from "./pack.service";
@@ -59,7 +59,7 @@ async deleteForfait(@Param('id') forfaitId: string): Promise<void> {
 @UseGuards(AuthMiddleware)
 @UseGuards(AuthGuard('jwt'))
 @Post(':packId/acheter')
-async acheterPack(@Req() request,@Req() req: Request & { user: { sub: number} }): Promise<void> {
+async acheterPack(@Req() request,@Req() req: Request & { user: { sub: number} }): Promise<void |string> {
     const userId = req.user.sub; 
 console.log(' req.user.sub', req.user.sub)
     const packId = parseInt(request.params['packId'], 10); 
@@ -69,17 +69,21 @@ console.log(' req.user.sub', req.user.sub)
 @UseGuards(AuthMiddleware)
 @UseGuards(AuthGuard('jwt'))
 @Post('demandes/:demandeId/accepter')
-    async accepterDemandePack(@Param('demandeId') demandeId: number): Promise<void> {
-        await this.packService.accepterDemandePack(demandeId);
+    async accepterDemandePack(@Param('demandeId') demandeId: number,@Body() firebaseToken: string ): Promise<string> {
+        const result = this.packService.accepterDemandePack(demandeId, firebaseToken);
+        return result
+     
     }
     @UseGuards(AuthMiddleware)
 @UseGuards(AuthGuard('jwt'))
  @Post('custom')
-async createCustomForfait(@Body() forfaitData: PackDto, @Req() req: Request & { user: { sub: number} }): Promise<Forfait> {
+async createCustomForfait(@Body() forfaitData: PackDto, firebaseToken:any, @Req() req: Request & { user: { sub: number} }): Promise<Forfait> {
         try {
             const userId = req.user.sub; 
             console.log(' req.user.sub', req.user.sub)
-            const customForfait = await this.packService.createCustomForfait(forfaitData, Number(userId));
+            console.log('forfaitData', forfaitData)
+            console.log('firebaseToken', firebaseToken)
+            const customForfait = await this.packService.createCustomForfait(forfaitData, Number(userId), firebaseToken);
             return customForfait;
         } catch (error) {
             throw new NotFoundException(error.message);
@@ -89,7 +93,24 @@ async createCustomForfait(@Body() forfaitData: PackDto, @Req() req: Request & { 
     @UseGuards(AuthMiddleware)
 @UseGuards(AuthGuard('jwt'))
 @Post('demandes/:demandeId/refuser')
-    async refuserDemandePack(@Param('demandeId') demandeId: number): Promise<void> {
-        await this.packService.refuserDemandePack(demandeId);
+    async refuserDemandePack(@Param('demandeId') demandeId: number, @Body() firebaseToken:any): Promise<void> {
+        await this.packService.refuserDemandePack(demandeId, firebaseToken);
+    }
+
+    @UseGuards(AuthMiddleware)
+    @UseGuards(AuthGuard('jwt'))
+    @Post('updateEvent')
+    async updateEvent(
+      @Body() data: any,
+      @Req() req: Request & { user: { sub: number } },
+    ): Promise<any> {
+      const sub = req.user.sub;
+      console.log('postData', data);
+      try {
+        const demande = await this.packService.createDemande(Number(sub), data);
+        return demande;
+      } catch (error) {
+        throw new Error(`Failed to create demande: ${error.message}`);
+      }
     }
 }

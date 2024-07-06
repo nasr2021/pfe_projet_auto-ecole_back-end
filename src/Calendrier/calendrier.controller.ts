@@ -8,7 +8,6 @@ import { CalendrierService, evenementWithStats } from "./calendrier.service";
 import { Calendrier } from "./calendrier.model";
 import { ApiSecurity, ApiTags } from "@nestjs/swagger";
 import { CalendrierDto } from "./dto";
-
 @Controller('api/calendrier')
 
 export class CalendrierController {
@@ -63,14 +62,15 @@ export class CalendrierController {
 
     @UseGuards(AuthGuard('jwt'))
     @Post()
-    async postCalendrier(@Body() postData: any, @Req() req: Request & { user: { sub: number } }): Promise<Calendrier> {
+    async postCalendrier(@Body() postData: any, @Req() req: Request & { user: { sub: number } }): Promise<Calendrier | string> {
         const sub = req.user.sub;
         console.log("postData", postData);
         const result = await this.calendrierService.createCalendrier(postData, Number(sub));
     
-        if (typeof result === 'string') {
-          throw new HttpException(result, HttpStatus.CONFLICT);
-        }
+        // if (typeof result === 'string') {
+        //   throw new HttpException(result, HttpStatus.CONFLICT);
+        // }
+
     
         return result;
       }
@@ -86,6 +86,18 @@ export class CalendrierController {
       }
       @UseGuards(AuthMiddleware)
       @UseGuards(AuthGuard('jwt'))
+      @Get('demande')
+      async getDemandeCalendriersByUser(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<Calendrier[]> {
+        const userId = req.user.sub;
+        const userole = req.user.idRole;
+        console.log('userId',userId)
+        console.log('userole',userole)
+        const reponse= this.calendrierService.getDemandeCalendriersByUser(userId,userole);
+      console.log('reponse', reponse)
+      return reponse
+      }
+      @UseGuards(AuthMiddleware)
+      @UseGuards(AuthGuard('jwt'))
       @Get('historiqe')
       async getHistory(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<Calendrier[]> {
         const userId = req.user.sub;
@@ -93,6 +105,16 @@ export class CalendrierController {
         console.log('userId',userId)
         console.log('userole',userole)
         return this.calendrierService.getHistory(userId,userole);
+      }
+      @UseGuards(AuthMiddleware)
+      @UseGuards(AuthGuard('jwt'))
+      @Get('temp')
+      async gettempHistory(@Req() req: Request & { user: { sub: number,idRole:string } }): Promise<string> {
+        const userId = req.user.sub;
+        const userole = req.user.idRole;
+        console.log('userId',userId)
+        console.log('userole',userole)
+        return this.calendrierService.getTempHistorique(Number(userId), parseInt(userole));
       }
       @UseGuards(AuthMiddleware)
       @UseGuards(AuthGuard('jwt'))
@@ -110,4 +132,6 @@ export class CalendrierController {
       async getAllCalendrier(@Param('id') idUser: number): Promise<Calendrier[]> {
         return this.calendrierService.getAllCalendrier(Number(idUser));
       }
+
+
 }

@@ -1,6 +1,6 @@
 import { Prisma } from "@prisma/client";
 
-export class Calendrier implements Prisma.calendrierCreateWithoutCategoryInput {
+export class Calendrier implements Prisma.calendrierCreateInput {
     idEvenement?: number;
 
     idUser?:number;

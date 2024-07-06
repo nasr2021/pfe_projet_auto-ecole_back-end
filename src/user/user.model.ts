@@ -8,10 +8,11 @@ export class User implements Prisma.userCreateInput {
     otp?: string;
     nom?: string;
     prenom?: string;
+    connecte?: number;
     email?: string;
     numero_telephone1?: string;
     numero_telephone2?: string;
-    idRole: number;
+    idRole?: number;
     description?: string;
     nombre_candidat?: number;
     ids_candidats_participes?: string;

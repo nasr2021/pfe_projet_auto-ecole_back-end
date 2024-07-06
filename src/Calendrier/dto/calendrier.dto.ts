@@ -44,4 +44,7 @@ export class CalendrierDto {
     @ApiProperty()
     @IsOptional()
     idMoniteur?: number;
+    @ApiProperty()
+    @IsOptional()
+    idEvenement?:number;
 }
