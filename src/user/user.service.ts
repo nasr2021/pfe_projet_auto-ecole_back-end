@@ -975,7 +975,7 @@ const currentDate = new Date();
             select: {
               idMoniteur: true,
               idAutoecole: true,
-              statut: true,
+           
               date_creation: true,
               user: true,
             },
@@ -1008,8 +1008,7 @@ const currentDate = new Date();
             
               idCondidat: true,
               idAutoecole: true,
-              nombre_fois_conduit: true,
-              nombre_fois_code: true,
+          
               date_creation: true,
               user: true,
             },

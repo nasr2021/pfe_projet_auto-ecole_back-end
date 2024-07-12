@@ -1075,14 +1075,9 @@ else{
       date_fin: undefined,
       description: '',
       idUser: 0,
-      idCompteConnecte: 0,
       idMoniteur: 0,
       date_creation: undefined,
-      date_modification: undefined,
- 
-      idVoiture: 0,
-      idNotification: 0,
-      idContrat:0
+      idVoiture: 0
     });
   }
 

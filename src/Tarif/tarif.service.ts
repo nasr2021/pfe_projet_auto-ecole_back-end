@@ -40,8 +40,8 @@ export class TarifService{
                 data: {
                     idService: serviceId,
                     idUser: userId,
-                    tarif: tarif,
-                    Ger_idUser:userId,
+                    tarif: tarif
+                   
                 },
             });
     
@@ -111,14 +111,6 @@ export class TarifService{
                 service: true, 
             }
         });}
-   else if(nom_role==='ecole'){   
-    return this.prisma.tarification.findMany({
-   where: {
-       Ger_idUser: userId,
-   }, include: {
-    service: true 
-}
-});}
     }
     async getTarificationWithService(idService: number, idUser: number): Promise<tarification> {
         const tarificationWithService = await this.prisma.tarification.findFirst({

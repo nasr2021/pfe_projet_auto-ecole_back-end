@@ -10,9 +10,9 @@ export class Voitures implements Prisma.voituresCreateInput {
     matricule?: string;
     couleur?: string;
     statut?: string;
-    gerantecole?: Prisma.gerantecoleCreateNestedOneWithoutVoituresInput;
+
     autoecole?: Prisma.autoecoleCreateNestedOneWithoutVoituresInput;
-    moniteur?: Prisma.moniteurCreateNestedOneWithoutVoituresInput;
+  
     // user_cars_idUserTouser?: Prisma.userCreateNestedOneWithoutVoitures_voitures_idUserTouserInput;
     calendrier?: Prisma.calendrierCreateNestedManyWithoutVoituresInput;
     image?:string;

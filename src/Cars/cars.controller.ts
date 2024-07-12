@@ -58,19 +58,7 @@ export class CarsController {
           
      
   }
-  @Post(':carId/assign/:moniteurId')
-  async assignCarToMoniteur(
-      @Param('carId') carId: number,
-      @Param('moniteurId') moniteurId: number
-  ): Promise<Voitures> {
-      try {
-          const assignedCar = await this.carsService.assignCarToMoniteur(carId, moniteurId);
-         console.log('assignedCar',assignedCar)
-          return assignedCar;
-      } catch (error) {
-          throw new NotFoundException(error.message);
-      }
-  }
+
   @UseGuards(AuthMiddleware)
   @UseGuards(AuthGuard('jwt'),RolesGuard)
   @Roles('ecole')
